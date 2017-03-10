@@ -1,0 +1,15 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+
+<form action="" method="post">
+
+    {% csrf_token %}
+	<fieldset class=module aligned>
+	<table>
+    {{ form }}
+    </table>
+    </fieldset>
+    <input type="submit" value="Submit" />
+</form>
+</fieldset>
+{% endblock %}

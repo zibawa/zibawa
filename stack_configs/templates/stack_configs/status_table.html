@@ -1,0 +1,14 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+
+{% if status_list %}
+    <table>
+    <tr><th>Element</th><th>Status</th><th>Message</th></tr>
+    {% for check in status_list %}
+        <tr><td>{{check.name}}</td><td>{{check.status}}</td><td>{{check.message}}</td></tr>
+    {% endfor %}
+    </table>
+{% else %}
+    <p>No status elements are available.</p>
+{% endif %}
+{% endblock %}

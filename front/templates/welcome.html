@@ -1,0 +1,16 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+
+
+{% if user.is_authenticated %}
+<p>You are already logged in</p>
+<p><a href="/stack_configs/">Stack Configuration</a></p>
+{% else %}
+
+
+<p>This is the hosted version for Zibawa.  </p>  
+<p><a href="{% url 'login' %}">Log In (Existing Users)</a></p>
+<p><a href="{% url 'create_account' %}">Create New Account</a></p>
+
+{% endif %}
+{% endblock %}

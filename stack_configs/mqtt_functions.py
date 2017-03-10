@@ -1,0 +1,465 @@
+from devices.models import device,channel,channel_tag
+from hooks.models import person,place,product,hook
+from models import sendToDB,sendToElastic,searchElastic,initializeElasticIndex,getRabbitConnection,getQueryInflux
+from django.utils.dateparse import parse_datetime
+from django.core.management.base import BaseCommand, CommandError
+from django.utils.html import strip_tags
+from django.conf import settings
+from google.protobuf import json_format
+import json
+import datetime
+import logging
+import kura_pb2
+from django.utils import timezone
+from dns.rdatatype import NULL
+LOGGER = logging.getLogger(__name__)
+
+#these are the main functions used to process mqtt data
+
+
+
+class MqttData:
+    def __init__(self, topic,message):
+        self.topic=topic
+        self.message=message
+       
+    
+class TopicData:
+    def __init__(self, topic):
+        
+        split= topic.split(".")
+        self.account= split[0]
+        self.device = split[1]
+        self.channel= split[3]
+        self.msgformat= split[2]
+
+class MqttErrorsToDelete:
+    def __init__(self):
+        self.timestamp="Failed"
+        self.database="Failed"
+        self.format="Failed"
+        self.topicFormat="Failed"
+
+class MqttCheck:
+    def __init__(self,name,status,message):
+        self.name=name
+        self.status=status
+        self.message=message
+
+
+
+class TimeData:
+    '''when instance is created with a string which may or may not be valid
+    timestamp either in unix or datetime format the class returns valid time object and formatted time string
+    '''    
+    
+    
+    def __init__(self, originalStr):
+        
+        self.name="TimeData"
+        LOGGER.debug('trying to parse timestamp string from message %s ', originalStr)
+        if(originalStr==None):
+            self.t_object=timezone.now()
+            self.message="No time found"
+            self.status="OK"
+            
+        
+        else: 
+            try:
+                self.t_object=datetime.datetime.fromtimestamp(float(originalStr)/1000)
+                self.message="Unix time found"
+                self.status="OK"
+            except:
+           
+                try:
+                    self.t_object=parse_datetime(originalStr)
+                    if (self.t_object)==None:
+                        self.t_object=timezone.now()
+                        self.message="Bad time format" 
+                        self.status="Failed"
+                    else:
+                        self.message="Datetime found"  
+                        self.status="OK" 
+                    
+                except:
+                    self.t_object=timezone.now()
+                    self.message="Not valid date time"
+                    self.status="Failed"
+                               
+        LOGGER.info(' %s time is %s', self.message, self.t_object)
+        
+        
+    
+ 
+
+def getChannel(topicData):
+#assumes topic format sender/receiver/channel/format    
+    try:
+        result= channel.objects.get(channel_id=topicData.channel,device__device_id=topicData.device)
+    except:
+        result='false'
+        LOGGER.warning('channel not found on database for that device %s,%s', topicData.device,topicData.channel)
+        pass
+        
+        
+    return result
+
+
+
+def processMessages(mqttData):
+    '''
+    this function must be sufficiently robust to process any message
+    tests for various formats. Looks for timestamp, checks for presence
+    of valid channel or hooks on database will be used to further enrich data  
+    
+    '''
+    
+    #result=MqttErrors()
+    mqttChecksList=[]
+    
+    
+    try:
+        t=TopicData(mqttData.topic)
+        #result.topicFormat="OK"
+        output=MqttCheck("TopicFormat","OK","")
+        mqttChecksList.append(output)
+    except:
+        LOGGER.warning('Bad topic format %s', mqttData.topic)
+        output=MqttCheck("TopicFormat","Failed","Topic must be of format */*/*/#")
+        mqttChecksList.append(output)
+        return mqttChecksList
+    data={}
+    #first check for simple numeric value (it would also parse succesfully as json!)
+    
+    try:
+        value=float (mqttData.message)
+        data['value']=value
+        #result.format='float'
+        LOGGER.debug('message float format%s', mqttData.topic)
+        output=MqttCheck("Message Format","OK","Float")
+        mqttChecksList.append(output)
+    except:
+        #then check for json   
+        try:
+            data=json.loads(mqttData.message)
+            #result.format='JSON'
+            LOGGER.debug('message json format %s', mqttData.topic)
+            output=MqttCheck("Message Format","OK","JSON")
+            mqttChecksList.append(output)
+        except:
+            #test for Kura messages
+            try:
+                data=decodeKuraPayload(mqttData.message)
+                #result.format='KURA'
+                LOGGER.debug('kura decoding complete %s', mqttData.topic)
+                output=MqttCheck("Message Format","OK","Kura")
+                mqttChecksList.append(output)
+            except:
+                #finally for simple text
+                try:
+                    data['text']= str(strip_tags(mqttData.message))
+                    #result.format='text'  
+                    LOGGER.debug('message text format %s', mqttData.topic) 
+                    output=MqttCheck("Message Format","Failed","Message will be stored as text")
+                    mqttChecksList.append(output)
+                except:
+                    LOGGER.warning('invalid message format %s', mqttData.topic)
+                    output=MqttCheck("Message Format","Failed","Unable to parse message")
+                    mqttChecksList.append(output)
+                    return mqttChecksList
+    
+              
+    tags={}
+    #this defines the elasticsearch index or influxDatabase we will send to.       
+    index= "dab"+str(t.account)
+    config=settings.DATASTORE
+    if (config=='ELASTICSEARCH'):
+        initializeElasticIndex(index)
+    #try to parse timestamp from message, if fails current time
+ 
+    try:
+        timeStr=data['timestamp']
+    except:
+        timeStr=None 
+    
+    time_data=TimeData(timeStr)
+    mqttChecksList.append(time_data)
+    #result.timestamp= time_data.errorMessage 
+    data['timestamp']= str(time_data.t_object)   
+    #parse hooks from json message
+    try:
+        listOfHooks=data['hooks']
+        LOGGER.debug('Hooks found %s', mqttData.topic)
+        tags.update(processHooks(listOfHooks))
+        #remove hooks list from message data array, leave hooks=True as data field, to ensure we have at least one data field
+        data['hooks']="True"
+        output=MqttCheck("Hooks found","OK","")
+        mqttChecksList.append(output)
+    except:
+        LOGGER.debug('No hooks found %s', mqttData.topic)
+        output=MqttCheck("No Hooks found","OK","")
+        mqttChecksList.append(output)
+    #retrieve channel and device id from topic
+    tags['device_id']=t.device
+    tags['channel_id']=t.channel   
+    #retrieve channel object from database
+    
+    ch=getChannel(t)
+    
+    if not (ch=="false"):
+        tags.update(enrichChannel(ch))
+        tags.update(addChannel_Tags(ch))
+        checkAlarms(data,"value",ch)
+    
+        #add time related tags, hour,week etc
+        tags.update(addTimeTags(time_data.t_object,ch))
+        #add custom time elapsed time data for rfid 
+        if (ch.elapsed_since_same_ch=='True'):
+            data.update(getTimeElapsedInflux(index,t.device,t.channel,data))
+        if (ch.elapsed_since_diff_ch=='True'):
+            data.update(getTimeElapsedTagOnDifferentInflux(index,t.device,t.channel,data))
+    
+    result=len(tags)
+    output=MqttCheck("Tags found","OK",result)
+    mqttChecksList.append(output)
+    
+    result=sendToDB(index,data,tags)
+    if result==True:
+        output=MqttCheck("Send Data","OK",result)  
+    else:
+        output=MqttCheck("Send Data","Failed",result)
+    mqttChecksList.append(output) 
+    return mqttChecksList
+    
+    
+def processHooks(listOfHooks):
+    #given a list of Hooks(from message, or via channel/device database
+    #looks up Hooks in database and returns array of Tags
+    tagsToAdd={}
+    
+    #we use a counter to prevent us repeating index if multiple hooks
+    i=1
+    for hookItem in listOfHooks:
+        #add hookItem irrespective of whether we find on database
+        LOGGER.debug('adding hook %s', hookItem)
+        tagsToAdd['hk_id'+str(i)]= hookItem
+        #look up further details of hookItem on database if available
+        results=hook.objects.filter(hook_id=hookItem)
+        for result in results:
+            LOGGER.debug('adding hook data from database %s', hookItem)
+            tagsToAdd['hk_desc'+str(i)]=result.hook_desc
+            if not result.product is None:
+                tagsToAdd['product_id'+str(i)]=result.product.product_id
+                tagsToAdd['product_desc'+str(i)]=result.product.product_desc
+                tagsToAdd['product_fam'+str(i)]=result.product.product_fam
+            if not result.person is None:
+                tagsToAdd['person_id'+str(i)]=result.person.person_id
+                tagsToAdd['person_desc'+str(i)]=result.person.person_desc
+                tagsToAdd['person_fam'+str(i)]= result.person.person_fam
+            if not result.place is None:
+                tagsToAdd['place_id'+str(i)]=result.place.place_id
+                tagsToAdd['place_desc'+str(i)]=result.place.place_desc
+                tagsToAdd['place_fam'+str(i)]= result.place.place_fam
+                    
+            
+        i+=1
+    
+    return tagsToAdd
+    
+
+def checkAlarms(data,fieldToCheck,channel):
+    print "channel upperwarning %r" %(channel.upper_warning)
+    print "data field to check %r" % data[fieldToCheck]
+    if (float(data[fieldToCheck])>channel.upper_warning):
+        processAlarm(data,channel,'high')
+    elif (float(data[fieldToCheck])<channel.lower_warning):
+        processAlarm(data,channel,'low') 
+        
+def processAlarm(data,channel,status):   
+    if (channel.alarm_email):
+        message="Channel alarm, status %r" %(status)
+        print message
+        
+            
+def date_handler(obj):
+    if hasattr(obj, 'isoformat'):
+        return obj.isoformat()
+    else:
+        raise TypeError
+    
+def enrichAlarms(c):
+    alarmData={}
+    alarmData['upper_warning']=c.upper_warning
+    alarmData['lower_warning']=c.lower_warning
+    alarmData['status']="alarm"
+    alarmData['alarm_raised']=c.alarm_raised    
+    
+
+def enrichChannel(c):
+    
+    channelData={}
+    channelData['device_desc']=c.device.device_desc
+    channelData['group']=c.device.group
+    channelData['subgroup']=c.device.subgroup
+    channelData['section']=c.device.section.section_desc
+    location={}
+    location['lat']=c.device.latitude
+    location['lon']=c.device.longitude
+    channelData['location']=location
+    channelData['channel_desc']=c.channel_desc
+    
+    return channelData
+
+
+def addChannel_Tags(c):
+    tagsToAdd={}
+    LOGGER.debug('Looking for channel_tags %s', c.device.device_desc)
+    results=channel_tag.objects.filter(channel=c)
+    i=1
+    for result in results:
+        LOGGER.debug('channel tag found %s', result.name)
+        tagsToAdd['ch_tag'+str(i)]=result.name
+        i+=1
+        
+    return tagsToAdd
+
+
+   
+def addTimeTags(my_timeobject,c):    
+    
+    tags={}
+    if (c.time_tag_year==True):
+        tags['year']= my_timeobject.year
+    if (c.time_tag_month==True):
+        tags['month']= my_timeobject.month
+    if (c.time_tag_day==True):
+        tags['day_of_week']= my_timeobject.weekday()
+    if (c.time_tag_hour==True):
+        tags['hour']= my_timeobject.hour
+    #correct format for data['timestamp']='2016-12-14T07:59:53+00:00' 
+   
+    
+    return tags
+    
+
+def getTimeElapsedInflux(index,device_id,channel_id,data):
+    #gets time elapsed since ANY reading on SAME channel and device
+    #select device_name because we always have a tag with that name
+    #query="SELECT * from \"mqttData\" WHERE \"device_id\" = \'atest\' AND \"channel_id\" = \'1\';"
+    tagsToAdd={}
+    query="SELECT * from \"mqttData\" WHERE \"device_id\" = \'"+str(device_id)+"\' AND \"channel_id\" = \'"+str(channel_id)+"\' ORDER BY time DESC LIMIT 1"
+    results=getQueryInflux(index,query)
+    for result in results:
+        influxTime = result['time']
+        LOGGER.debug('influx result %s', influxTime)
+        l= parse_datetime(data['timestamp'])    
+        t= parse_datetime(influxTime)
+        tagsToAdd['elapsed-sec']= (l-t).total_seconds()
+        LOGGER.debug('time elapsed %s', tagsToAdd['elapsed-sec'])
+    return tagsToAdd
+
+def getTimeElapsedTagOnDifferentInflux(index,device_id,channel_id,data):
+    #gets time elapsed since ANY reading on SAME channel and device
+    #select device_name because we always have a tag with that name
+    #sample query shown string shown below before variable substitution
+    #query="SELECT * from \"mqttData\" WHERE \"hk_id1\" = \'apricot\' AND (\"device_id\" <> \'atest\' OR \"channel_id\" <> \'1\') ORDER BY time DESC LIMIT 1;"
+    
+    tagsToAdd={}
+    query="SELECT * from \"mqttData\" WHERE \"hk_id1\" = \'"+str(data['hk_id1'])+"\' AND (\"device_id\" <> \'"+str(device_id)+"\' OR \"channel_id\" <> \'"+str(channel_id)+"\') ORDER BY time DESC LIMIT 1;"
+    results=getQueryInflux(index,query)
+    for result in results:
+        influxTime = result['time']
+        
+        LOGGER.debug('influx result %s', influxTime)
+        l= parse_datetime(data['timestamp'])    
+        t= parse_datetime(influxTime)
+        tagsToAdd['elapsed-sec']= (l-t).total_seconds()
+        LOGGER.debug('time elapsed %s', tagsToAdd['elapsed-sec'])
+    return tagsToAdd
+
+
+
+def enrichProcessTimeInfo(rfid_id,device_id,ch_id,my_timestamp):
+#this function checks last swipe for tag for different channel and adds info
+    global elasticIndexes
+    index = elasticIndexes['rfid']
+    channelData={}
+    channelData['time_elapsed']=0
+    
+    #the query below must match tag, but not where device AND channel are same as current   
+    query={
+    "from" : 0, "size" : 1,    
+    "sort" : [
+        { "timestamp" : {"order" : "desc"}}],    
+    "query": {
+        "bool":{
+            "must":{ "match" : {"rfid_id" : rfid_id}},
+            "must_not":{"bool":{
+                "must":{"match":{"device_id": device_id}},
+                "must":{"match":{"channel_id": ch_id}}
+                            }        
+                        }
+                }
+              }}
+    
+    
+    try:
+        #it is possible that the result has zero hits ej.first time tag is scanned
+        #CANNOT REUSE TAGS WITH CURRENT CODE!
+        res= searchElastic(index,query)
+        #print("Got %d Hits:" % res['hits']['total'])
+        for hit in res['hits']['hits']:
+            #print("%(timestamp)s" %hit["_source"])
+            #print(res)
+            lastTime= hit["_source"]["timestamp"]
+            l= parse_datetime(my_timestamp)    
+            t= parse_datetime(lastTime)
+            channelData['time_elapsed']= (l-t).total_seconds()
+    except Exception as e:
+        raise CommandError("failed to connect to elastic in enrich process time")
+     
+    return channelData
+        
+
+
+
+def decodeKuraPayload(dataString):
+    #requires kura_pb2 to have been constructed and imported to define kura format
+    #uses google protocol buffers library which must have been installed
+    decoded={}
+    kura_payload = kura_pb2.KuraPayload()
+    kura_payload.ParseFromString(dataString)
+    json_string = json_format.MessageToJson(kura_payload)
+    LOGGER.info('message decoded by decodeKuraPayload %s', json_string)
+    decoded=listPayload(kura_payload)
+    return decoded
+
+def listPayload(kura_payload):
+    
+    decoded={}
+    if kura_payload.HasField('timestamp'):
+        decoded["timestamp"]=kura_payload.timestamp
+        LOGGER.info('timestamp obtained from kura payload %s', decoded["timestamp"])
+    for metric in kura_payload.metric:
+        
+        if metric.HasField('double_value'):
+            value=metric.double_value
+        elif metric.HasField('float_value'):
+            value=metric.float_value
+        elif metric.HasField('long_value'):
+            value=metric.long_value
+        elif metric.HasField('int_value'):
+            value=metric.int_value
+        elif metric.HasField('bool_value'):
+            value=metric.bool_value
+        elif metric.HasField('string_value'):
+            value=metric.string_value
+        elif metric.HasField('bytes_value'):
+            value=metric.bytes_value    
+        else:
+            break                
+        decoded[metric.name]=value
+    
+    
+    return decoded
+    
