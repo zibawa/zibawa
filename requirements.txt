@@ -1,0 +1,16 @@
+appdirs==1.4.3
+Django==1.10.6
+django-auth-ldap==1.2.10
+elasticsearch==5.2.0
+influxdb==4.0.0
+packaging==16.8
+pika==0.10.0
+protobuf==3.2.0
+psycopg2==2.7
+pyparsing==2.2.0
+python-dateutil==2.6.0
+python-ldap==2.4.32
+pytz==2016.10
+requests==2.13.0
+six==1.10.0
+urllib3==1.20

@@ -11,7 +11,7 @@ import datetime
 import logging
 import kura_pb2
 from django.utils import timezone
-from dns.rdatatype import NULL
+#from dns.rdatatype import NULL
 LOGGER = logging.getLogger(__name__)
 
 #these are the main functions used to process mqtt data
