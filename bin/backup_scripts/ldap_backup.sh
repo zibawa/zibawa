@@ -5,7 +5,7 @@
 
 
 $DAYS_TO_KEEP=7
-BACKUP_DIR=/home/matt/backup/ldap
+BACKUP_DIR=/home/zibawabackup/ldap
 SLAPCAT=/usr/sbin/slapcat
 
 FINAL_BACKUP_DIR=$BACKUP_DIR"`date +\%Y-\%m-\%d`-daily/"
