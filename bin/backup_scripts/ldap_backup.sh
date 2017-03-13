@@ -4,12 +4,12 @@
 #your particular installation
 
 
-$DAYS_TO_KEEP=7
+DAYS_TO_KEEP=7
 BACKUP_DIR=/home/zibawabackup/ldap
 SLAPCAT=/usr/sbin/slapcat
 
 FINAL_BACKUP_DIR=$BACKUP_DIR"`date +\%Y-\%m-\%d`-daily/"
- 
+
 	echo "Making backup directory in $FINAL_BACKUP_DIR"
  
 	if ! mkdir -p $FINAL_BACKUP_DIR; then
@@ -30,4 +30,4 @@ echo "Back ups completed in $FINAL_BACKUP_DIR"
 # Delete daily backups n days old or more
 find $BACKUP_DIR -maxdepth 1 -mtime +$DAYS_TO_KEEP -name "*-daily" -exec rm -rf '{}' ';'
  
-perform_backups "-daily"
+
