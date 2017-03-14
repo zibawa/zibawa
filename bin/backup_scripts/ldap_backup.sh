@@ -9,13 +9,13 @@ BACKUP_DIR=/home/zibawabackup/ldap
 SLAPCAT=/usr/sbin/slapcat
 
 FINAL_BACKUP_DIR=$BACKUP_DIR"`date +\%Y-\%m-\%d`-daily/"
-
-	echo "Making backup directory in $FINAL_BACKUP_DIR"
  
-	if ! mkdir -p $FINAL_BACKUP_DIR; then
-		echo "Cannot create backup directory in $FINAL_BACKUP_DIR. Go and fix it!" 1>&2
-		exit 1;
-	fi;
+        echo "Making backup directory in $FINAL_BACKUP_DIR"
+ 
+        if ! mkdir -p $FINAL_BACKUP_DIR; then
+                echo "Cannot create backup directory in $FINAL_BACKUP_DIR. Go and fix it!" 1>&2
+                exit 1;
+        fi;
  
 
 nice ${SLAPCAT} -n 0 > ${FINAL_BACKUP_DIR}/config.ldif
