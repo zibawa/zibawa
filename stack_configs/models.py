@@ -230,7 +230,9 @@ def postToGrafanaApi(apiurl,data):
     import requests
     config=settings.DASHBOARD
     
-    url=config['host']+":"+config['port']+apiurl
+    protocol='http://'
+    
+    url=protocol+config['host']+":"+config['port']+apiurl
     
     
     headers = {'Accept': 'application/json',
@@ -247,8 +249,8 @@ def patchToGrafanaApi(apiurl,data):
 
     import requests
     config=settings.DASHBOARD
-    
-    url=config['host']+":"+config['port']+apiurl
+    protocol='http://'
+    url=protocol+config['host']+":"+config['port']+apiurl
     
     
     headers = {'Accept': 'application/json',
@@ -263,11 +265,11 @@ def patchToGrafanaApi(apiurl,data):
 
 def getFromGrafanaApi(apiurl,data):
 #testing from command line
-# curl http://admin:groupessen@192.168.1.10:3000/api/org
+# curl http://user:password@192.168.1.10:3000/api/org
     import requests
     config=settings.DASHBOARD
-    
-    url=config['host']+":"+config['port']+apiurl
+    protocol='http://'
+    url=protocol+config['host']+":"+config['port']+apiurl
     
     
     headers = {'Accept': 'application/json',
@@ -279,11 +281,12 @@ def getFromGrafanaApi(apiurl,data):
 
 def getFromGrafanaApiAsUser(apiurl,data,username,password):
 #testing from command line
-# curl http://admin:groupessen@192.168.1.10:3000/api/org
+# curl http://user:password@192.168.1.10:3000/api/org
     import requests
     config=settings.DASHBOARD
     
-    url=config['host']+":"+config['port']+apiurl
+    protocol='http://'
+    url=protocol+config['host']+":"+config['port']+apiurl
     
     
     headers = {'Accept': 'application/json',
@@ -299,8 +302,8 @@ def getFromGrafanaApiAsUser(apiurl,data,username,password):
 def deleteFromGrafanaApi(apiurl):
     import requests
     config=settings.DASHBOARD
-    
-    url=config['host']+":"+config['port']+apiurl
+    protocol='http://'
+    url=protocol+config['host']+":"+config['port']+apiurl
     
     
     headers = {'Accept': 'application/json',
