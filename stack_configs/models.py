@@ -230,7 +230,11 @@ def postToGrafanaApi(apiurl,data):
     import requests
     config=settings.DASHBOARD
     
-    protocol='http://'
+    
+    if config['use_ssl']:
+        protocol='https://'
+    else:   
+        protocol='http://'
     
     url=protocol+config['host']+":"+config['port']+apiurl
     
@@ -249,7 +253,12 @@ def patchToGrafanaApi(apiurl,data):
 
     import requests
     config=settings.DASHBOARD
-    protocol='http://'
+    
+    if config['use_ssl']:
+        protocol='https://'
+    else:   
+        protocol='http://'
+    
     url=protocol+config['host']+":"+config['port']+apiurl
     
     
@@ -268,7 +277,12 @@ def getFromGrafanaApi(apiurl,data):
 # curl http://user:password@192.168.1.10:3000/api/org
     import requests
     config=settings.DASHBOARD
-    protocol='http://'
+    
+    if config['use_ssl']:
+        protocol='https://'
+    else:   
+        protocol='http://'
+    
     url=protocol+config['host']+":"+config['port']+apiurl
     
     
@@ -284,8 +298,11 @@ def getFromGrafanaApiAsUser(apiurl,data,username,password):
 # curl http://user:password@192.168.1.10:3000/api/org
     import requests
     config=settings.DASHBOARD
+    if config['use_ssl']:
+        protocol='https://'
+    else:   
+        protocol='http://'
     
-    protocol='http://'
     url=protocol+config['host']+":"+config['port']+apiurl
     
     
@@ -302,7 +319,12 @@ def getFromGrafanaApiAsUser(apiurl,data,username,password):
 def deleteFromGrafanaApi(apiurl):
     import requests
     config=settings.DASHBOARD
-    protocol='http://'
+    
+    if config['use_ssl']:
+        protocol='https://'
+    else:   
+        protocol='http://'
+    
     url=protocol+config['host']+":"+config['port']+apiurl
     
     
