@@ -1,9 +1,5 @@
 from __future__ import print_function
 from __future__ import absolute_import
-from __future__ import division
-from builtins import str
-from past.utils import old_div
-from builtins import object
 from devices.models import device,channel,channel_tag
 from hooks.models import person,place,product,hook
 from .models import sendToDB,sendToElastic,searchElastic,initializeElasticIndex,getRabbitConnection,getQueryInflux
@@ -24,13 +20,13 @@ LOGGER = logging.getLogger(__name__)
 
 
 
-class MqttData(object):
+class MqttData:
     def __init__(self, topic,message):
         self.topic=topic
         self.message=message
        
     
-class TopicData(object):
+class TopicData:
     def __init__(self, topic):
         
         split= topic.split(".")
@@ -39,14 +35,14 @@ class TopicData(object):
         self.channel= split[3]
         self.msgformat= split[2]
 
-class MqttErrorsToDelete(object):
+class MqttErrorsToDelete:
     def __init__(self):
         self.timestamp="Failed"
         self.database="Failed"
         self.format="Failed"
         self.topicFormat="Failed"
 
-class MqttCheck(object):
+class MqttCheck:
     def __init__(self,name,status,message):
         self.name=name
         self.status=status
@@ -54,7 +50,7 @@ class MqttCheck(object):
 
 
 
-class TimeData(object):
+class TimeData:
     '''when instance is created with a string which may or may not be valid
     timestamp either in unix or datetime format the class returns valid time object and formatted time string
     '''    
@@ -72,7 +68,7 @@ class TimeData(object):
         
         else: 
             try:
-                self.t_object=datetime.datetime.fromtimestamp(old_div(float(originalStr),1000))
+                self.t_object=datetime.datetime.fromtimestamp(float(originalStr)/1000)
                 self.message="Unix time found"
                 self.status="OK"
             except:

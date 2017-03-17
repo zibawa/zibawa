@@ -1,8 +1,5 @@
 from __future__ import print_function
 from __future__ import absolute_import
-from builtins import str
-from builtins import range
-from builtins import object
 from django.http import Http404
 from django.shortcuts import render
 from django.conf import settings
@@ -10,14 +7,14 @@ from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 
 from .models import sendToRabbitMQ
-from .models import sendToRabbitMQ, getFromGrafanaApi,getInfluxConnection
+from .models import sendToRabbitMQ, getFromGrafanaApi, patchToGrafanaApi,postToGrafanaApi, deleteFromGrafanaApi, getInfluxConnection
 import random
 import string
 
 import logging
 logger = logging.getLogger(__name__)  
 
-class testObj(object):
+class testObj:
 
     def __init__(self, name,status,message):
         self.name = name
@@ -32,7 +29,7 @@ def constructStatusList(request):
     rabbitMQTest=testConnectToRabbitMQ 
     grafanaUpTest=testGrafanaUp 
     orgID= getGrafanaOrg(request.user)
-    if not(isinstance(orgID, ( int, int ) )):
+    if not(isinstance(orgID, ( int, long ) )):
         grafanaOrgTest=testObj("GrafanaLogIn","Failed","You need to sign in to Grafana Dashboard for the first time before it can be configured")
         status_list=(rabbitMQTest,grafanaUpTest,grafanaOrgTest)
     else:
@@ -60,7 +57,7 @@ def testGrafanaUp():
     try:
         data={}
         apiurl="/api/org"
-        result=getFromGrafanaApi(apiurl, data,'GET')
+        result=getFromGrafanaApi(apiurl, data)
         output=testObj("Grafana Running","OK","")
     except Exception as e:
         output=testObj("Grafana Running", "Failed","Contact your administrator, Zibawa cannot contact Grafana")
@@ -75,9 +72,10 @@ def getGrafanaOrg(current_user):
     orgID=0
     apiurl="/api/orgs/name/"+str(current_user.email)
     data={}
-         
+    #delete get from grafanaapi before production
+    result=getFromGrafanaApi(apiurl,data) 
     try:
-        result=getFromGrafanaApi(apiurl,data,'GET')    
+        result=getFromGrafanaApi(apiurl,data)    
         orgID=result['id']
         return orgID
     except Exception as e: 
@@ -94,7 +92,7 @@ def addDataBaseToGrafana(influxTest,orgId,current_user):
     
     apiurl="/api/orgs/"+str(orgId)+"/users"
     data={}
-    results=getFromGrafanaApi(apiurl,data,'GET') 
+    results=getFromGrafanaApi(apiurl,data) 
     for result in results:
         #check if the login of the grafana user is the login of super user as defined in settings.py
         if not (result['login']==settings.DASHBOARD['user']):
@@ -103,19 +101,19 @@ def addDataBaseToGrafana(influxTest,orgId,current_user):
     
     data={}
     apiurl="/api/datasources/name/"+str(influxTest.database)
-    result=getFromGrafanaApi(apiurl,data,'GET') 
+    result=getFromGrafanaApi(apiurl,data) 
     print(result)   
     if not result or not 'database' in result:
         #create the datasource
-        #add Admin user to the user-specific organization
+#add Admin user to the user-specific organization
         try:
-        
+            
             data={
                 "loginOrEmail":settings.DASHBOARD['user'],
                 "role":"Admin"
                 }
             apiurl="/api/orgs/"+str(orgId)+"/users"
-            result=getFromGrafanaApi(apiurl,data,'POST')
+            result=postToGrafanaApi(apiurl,data)
                 
     #change admin level of user back to editor (grafana creates users with admin level)
    
@@ -123,11 +121,11 @@ def addDataBaseToGrafana(influxTest,orgId,current_user):
     
             apiurl="/api/orgs/"+str(orgId)+"/users/"+str(grafanaUser)
             data={"role":"Editor"}
-            result=getFromGrafanaApi(apiurl,data,'PATCH')
+            result=patchToGrafanaApi(apiurl,data)
         #change active organization (empty data array)
             data={}
             apiurl="/api/user/using/"+str(orgId)
-            result=getFromGrafanaApi(apiurl,data,'POST')
+            result=postToGrafanaApi(apiurl,data)
          
         #add datasource to organization
             DBusername="dab"+str(current_user.username)
@@ -148,14 +146,13 @@ def addDataBaseToGrafana(influxTest,orgId,current_user):
             data['user']= DBusername
             data['database']=influxTest.database
         
-            result=getFromGrafanaApi(apiurl,data,'POST')
+            result=postToGrafanaApi(apiurl,data)
             output= testObj("Grafana Data Source","OK",influxTest.database)
         except Exception as e: 
             
             message= "Database:"+str(influxTest.database)
-            
             logger.warning('Couldnt add datasource to Grafana Organization %s,', e)
-            output= testObj("Grafana Data Source","Failed",e)
+            output= testObj("Grafana Data Source","Failed",message)
     elif result['database']==influxTest.database:
           
             output=testObj("Grafana Data Source","OK", influxTest.database)
@@ -182,6 +179,10 @@ def testInfluxDB(current_user):
             output.status="OK"
             output.message="UserDatabase on-line"
     
+     #   credentials['database']=output.database
+     #   credentials['dbusername']=dbusername
+     #   credentials['dbpassword']=dbpassword
+     #   credentials['success']=True
         
     except Exception as e: 
         logger.warning('Couldnt create influxDB %s,', e)

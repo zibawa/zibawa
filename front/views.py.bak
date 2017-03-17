@@ -2,8 +2,6 @@ from __future__ import absolute_import
 
 #from urllib.parse import urlparse, urlunparse
 
-from builtins import str
-from builtins import range
 from django.conf import settings
 # Avoid shadowing the login() and logout() views below.
 from django.contrib.auth import (
@@ -46,7 +44,7 @@ from django.template import loader
 import ldap.modlist
 import random
 import string
-#import user
+import user
 
 from .forms import UserForm
 from stack_configs.models import addToLDAPGroup,resetLDAPpassword

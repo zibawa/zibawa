@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 from __future__ import print_function
-from builtins import str
 from django.db import models
 from django.core.exceptions import ValidationError
 from datetime import datetime
@@ -155,7 +154,7 @@ def sendToInflux(indexName,jsonData,tags):
     #jsonData={"timestamp":'2009-11-10T23:00:00Z',"value":0.44}
     f={}
     d={}             
-    for key, value in list(jsonData.items()):
+    for key, value in jsonData.items():
         if (key=='timestamp'):
             d["time"]= value
         else:
@@ -273,37 +272,39 @@ def patchToGrafanaApi(apiurl,data):
     print(json.dumps(json_data))
     return json_data
 
-def getFromGrafanaApi(apiurl,data,callType):
-    
-    #call type= GET,POST,PUT,DELETE
+def getFromGrafanaApi(apiurl,data):
+    #import urllib3.contrib.pyopenssl
+    #urllib3.contrib.pyopenssl.inject_into_urllib3()
+    import certifi
     import urllib3
-        
-    if settings.DASHBOARD['use_ssl']:
-        protocol='https://'
-        cert_reqs='CERT_REQUIRED' # Force certificate check.
-    else:   
-        protocol='http://'
-        cert_reqs=None #
-        
+    import sys
+    print (sys.version)
+    
+    #ca_certs = "/etc/ssl/certs/ca-certificates.crt"  # Or wherever it lives.
+    ca_certs = "/home/julimatt/jmmserver/selfsigned.crt"
     http = urllib3.PoolManager(
-    cert_reqs=cert_reqs,
-    ca_certs=settings.DASHBOARD['path_to_ca_cert'],         # Path to your certificate bundle.
+    cert_reqs='CERT_REQUIRED', # Force certificate check.
+    ca_certs=ca_certs,         # Path to your certificate bundle.
     )
     
-    auth= settings.DASHBOARD['user']+":"+settings.DASHBOARD['password']
-    headers=urllib3.util.request.make_headers(keep_alive=None, accept_encoding='application/json', user_agent=None, basic_auth=auth, proxy_basic_auth=None, disable_cache=None)
-        
+   
+    
+    logger.debug('certs  %s,', settings.DASHBOARD['path_to_ca_cert'])  
+    #data = {'attribute': 'value'}
     encoded_data = json.dumps(data).encode('utf-8')
-        
-        
+    if settings.DASHBOARD['use_ssl']:
+        protocol='https://'
+    else:   
+        protocol='http://'
+    
     request_url=protocol+settings.DASHBOARD['host']+":"+settings.DASHBOARD['port']+apiurl
     logger.debug('sending http request to  %s,', request_url)     
     r = http.request(
-        callType,
+        'GET',
         url= request_url,
         body=encoded_data,
-        headers=headers)
-    json_data=json.loads(r.data.decode('utf-8'))
+        headers={'Accept': 'application/json','Content-Type': 'application/json'})
+    json_data=json.loads(r.data.decode('utf-8'))['json']
     print(json_data)
     return json_data
 
