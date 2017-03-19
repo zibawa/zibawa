@@ -12,7 +12,7 @@ from django.contrib.auth import (
 )
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import (
-    AuthenticationForm, PasswordChangeForm, PasswordResetForm, SetPasswordForm,
+    AuthenticationForm, PasswordChangeForm, PasswordResetForm, SetPasswordForm,AdminPasswordChangeForm,
 )
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.sites.shortcuts import get_current_site
@@ -43,13 +43,13 @@ from django.http import HttpResponse
 
 from django.template import loader
 
-import ldap.modlist
+import ldap
 import random
 import string
 #import user
 
 from .forms import UserForm
-from stack_configs.models import addToLDAPGroup,resetLDAPpassword
+from stack_configs.models import addToLDAPGroup,resetLDAPpassword,createLDAPuser
 import logging
 
 LOGGER = logging.getLogger(__name__)
@@ -78,14 +78,13 @@ def createAccount(request):
         if form.is_valid():
             password = form.cleaned_data['password']
             new_user = User.objects.create_user(**form.cleaned_data)
-            new_user.is_staff=True 
-            new_user.save()
-           
-            
-            context =initializeAccount(new_user,password)
-            
-            # redirect, or however you want to get to the main view
-            return HttpResponseRedirect('/devices/testMessage/')
+            #new_user.is_staff=True 
+            #new_user.save()
+            if (createLDAPuser(new_user,password)):
+                if (addToLDAPGroup(new_user.username,'active')):
+                    if (addToLDAPGroup(new_user.username,'editor')):
+                        return HttpResponseRedirect('/thanks/')
+            return HttpResponseRedirect('/accountCreateError/')
     else:
         form = UserForm() 
 
@@ -100,45 +99,63 @@ def thanks(request):
         
     context = {
          'content':'Thanks. Please log in to your dashboard',
-         'title':'Your account has been created'
+         'title':'Your account has been created',
+         'is_popup':False,
+         'has_permission':request.user.is_authenticated,
     }
     return HttpResponse(template.render(context, request))
+
+def accountCreateError(request):
     
+    template = loader.get_template('admin/base_site.html')
+    
+        
+    context = {
+         'content':'Sorry. We could not create your account. Please contact your administrator',
+         'title':'Error',
+         'is_popup':False,
+         'has_permission':request.user.is_authenticated,
+    }
+    return HttpResponse(template.render(context, request))   
 
 def id_generator(size=10, chars=string.ascii_uppercase + string.digits):
     
     return ''.join(random.choice(chars) for _ in range(size))
 
 
-def initializeAccount(new_user,password):
-    #updates LDAP with user data
+
+
+def initializeAccountOld(new_user,password):
     
+    
+    con = ldap.initialize(settings.AUTH_LDAP_SERVER_URI, bytes_mode=False)
+    con.simple_bind_s(settings.AUTH_LDAP_BIND_DN,settings.AUTH_LDAP_BIND_PASSWORD)
+    dn= str("cn=")+str(new_user.username)+str(",")+str(settings.AUTH_LDAP_USERS_OU_DN)
+    
+    print("Adding", repr(dn))
+    
+    con.add_s(dn,
+     [
+        ("objectclass",[b"inetOrgPerson"]),
+        ("sn", [new_user.last_name.encode('utf-8')]),
+        ("givenName", [new_user.first_name.encode('utf-8')]),
+        ("mail",[new_user.email.encode('utf-8')]),
+        ("cn",[new_user.username.encode('utf-8')]),
+        ("displayName",[str(new_user.id).encode('utf-8')]),
+        ("uid",[new_user.username.encode('utf-8')]),
+        ("userPassword",[password.encode('utf-8')]),
+        
      
-    con = ldap.initialize(settings.AUTH_LDAP_SERVER_URI)
-    con.simple_bind_s(settings.AUTH_LDAP_BIND_DN, settings.AUTH_LDAP_BIND_PASSWORD)
-    
-   
-    
-    dn= "cn="+str(new_user.username)+","+settings.AUTH_LDAP_USERS_OU_DN
-    modlist={}
-    modlist['objectClass']=["inetOrgPerson", "posixAccount", "shadowAccount"]
-    modlist['sn']= str(new_user.last_name)
-    modlist['givenName']= str(new_user.first_name)
-    modlist['mail']= str(new_user.email)
-    modlist['cn']= str(new_user.username)
-    # modlist['displayName']= str(new_user.id)
-    modlist['uid']= str(new_user.username)
-    modlist['uidNumber']= str(new_user.id)
-    modlist['gidNumber']= str(settings.AUTH_LDAP_USERS_DEFAULT_GID)
-    modlist['homeDirectory']="/home/zibawa/"+str(new_user.username)
-    modlist['userPassword']= str(password)
-    
-            
-# addModList transforms your dictionary into a list that is conform to ldap input.
-    result = con.add_s(dn, ldap.modlist.addModlist(modlist))
+     ]
+       )
+       
     addToLDAPGroup(new_user.username,'active')
     addToLDAPGroup(new_user.username,'editor') 
-    #addToLDAPGroup(new_user,'public')
+
+
+
+
+
 
 # Doesn't need csrf_protect since no-one can guess the URL
 @sensitive_post_parameters()
@@ -181,20 +198,13 @@ def zibawa_password_reset_confirm(request, uidb64=None, token=None,
                 #ZIBAWA MODIFICATIONS START HERE
                 user_dn= "cn="+str(user.username)+","+settings.AUTH_LDAP_USERS_OU_DN
                 new_password = form.cleaned_data['new_password1']
-                result= resetLDAPpassword(user_dn,new_password)
-                try:
-                    #ldap should return empty array in position 1 if successful
-                    if result[1]==[]:
-                        LOGGER.debug('reset LDAP password %s,', result)  
-                        return HttpResponseRedirect(post_reset_redirect)
-                                            
-                except:
-                    result=None
-                    pass
+                if(resetLDAPpassword(user_dn,new_password)):
+                    return HttpResponseRedirect(post_reset_redirect)
+                else:              
                 #if result from LDAP is not what we expect, or if no result
-                LOGGER.warning('couldnt reset LDAP password %s,', result)  
-                title = _('Could not reset LDAP password')
-                #ZIBAWA MODIFICATIONS END HERE
+                    LOGGER.warning('couldnt reset LDAP password %s,', result)  
+                    title = _('Could not reset LDAP password')
+                    #ZIBAWA MODIFICATIONS END HERE
                 
                 
         else:
@@ -207,6 +217,8 @@ def zibawa_password_reset_confirm(request, uidb64=None, token=None,
         'form': form,
         'title': title,
         'validlink': validlink,
+        'is_popup':False,
+        'has_permission':request.user.is_authenticated,
     }
     if extra_context is not None:
         context.update(extra_context)
@@ -220,7 +232,7 @@ def zibawa_password_reset_confirm(request, uidb64=None, token=None,
 def zibawa_password_change(request,
                     template_name='registration/password_change_form.html',
                     post_change_redirect=None,
-                    password_change_form=PasswordChangeForm,
+                    password_change_form=SetPasswordForm,
                     extra_context=None):
     '''warnings.warn("The password_change() view is superseded by the "
                   "class-based PasswordChangeView().",
@@ -239,34 +251,32 @@ def zibawa_password_change(request,
             #ZIBAWA MODIFICATIONS START HERE
             user_dn= "cn="+str(request.user.username)+","+settings.AUTH_LDAP_USERS_OU_DN
             new_password = form.cleaned_data['new_password1']
-            result= resetLDAPpassword(user_dn,new_password)
-            try:
-                #ldap should return empty array in position 1 if successful
-                if result[1]==[]:
-                    LOGGER.debug('reset LDAP password %s,', result)  
-                    update_session_auth_hash(request, form.user)
-                    return HttpResponseRedirect(post_change_redirect)
+            if(resetLDAPpassword(user_dn,new_password)):
+                LOGGER.debug('reset LDAP password')  
+                update_session_auth_hash(request, form.user)
+                return HttpResponseRedirect(post_change_redirect)
                                             
-            except:
-                result=None
-                pass
             #if result from LDAP is not what we expect, or if no result
-            LOGGER.warning('couldnt reset LDAP password %s,', result)  
+            else:
+                LOGGER.warning('couldnt reset LDAP password')
             
             context = {
                  'form': form,
                  'title': _('Could not reset LDAP password'),
+                 'is_popup':False,
+                 'has_permission':request.user.is_authenticated,
                  }
             return TemplateResponse(request, template_name, context)
             #ZIBAWA MODIFICATIONS END HERE
-                
-                               
+                             
             
     else:
         form = password_change_form(user=request.user)
     context = {
         'form': form,
         'title': _('Password change'),
+        'is_popup':False,
+        'has_permission':request.user.is_authenticated,
     }
     if extra_context is not None:
         context.update(extra_context)

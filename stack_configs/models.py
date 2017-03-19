@@ -12,8 +12,8 @@ from genericpath import exists
 from django.contrib.admin.utils import help_text_for_field
 from influxdb import InfluxDBClient,SeriesHelper
 import json
-import ldap
-import ldap.modlist
+import ldap #tobe elmimnated...
+from ldap3 import Server, Connection,ALL,MODIFY_ADD,MODIFY_REPLACE,MODIFY_DELETE
 
 import logging
 #from chardet.test import result
@@ -227,51 +227,7 @@ def sendToInfluxCurlForTesting(indexName,jsonData,tags):
     
     return result   
 
-def postToGrafanaApi(apiurl,data):
 
-    import requests
-    config=settings.DASHBOARD
-    
-    
-    if config['use_ssl']:
-        protocol='https://'
-    else:   
-        protocol='http://'
-    
-    url=protocol+config['host']+":"+config['port']+apiurl
-    
-    
-    headers = {'Accept': 'application/json',
-                   'Content-Type' : 'application/json'}
-    logger.debug('sending post request to  %s,', url)     
-    result = requests.post(url,auth=(config['user'],config['password']),headers=headers,data=json.dumps(data),verify=False)
-    print (result.text)
-    json_data = json.loads(result.text)
-    print(json.dumps(json_data))
-    return json_data
-
-
-def patchToGrafanaApi(apiurl,data):
-
-    import requests
-    config=settings.DASHBOARD
-    
-    if config['use_ssl']:
-        protocol='https://'
-    else:   
-        protocol='http://'
-    
-    url=protocol+config['host']+":"+config['port']+apiurl
-    
-    
-    headers = {'Accept': 'application/json',
-                   'Content-Type' : 'application/json'}
-       
-    result = requests.patch(url,auth=(config['user'],config['password']),headers=headers,data=json.dumps(data))
-    print (result.text)
-    json_data = json.loads(result.text)
-    print(json.dumps(json_data))
-    return json_data
 
 def getFromGrafanaApi(apiurl,data,callType):
     
@@ -307,28 +263,12 @@ def getFromGrafanaApi(apiurl,data,callType):
     print(json_data)
     return json_data
 
-def getFromGrafanaApi2(apiurl,data):
-#testing from command line
-# curl http://user:password@192.168.1.10:3000/api/org
-    import requests
-    config=settings.DASHBOARD
-    
-    if config['use_ssl']:
-        protocol='https://'
-    else:   
-        protocol='http://'
-    
-    url=protocol+config['host']+":"+config['port']+apiurl
-    
-    
-    headers = {'Accept': 'application/json',
-                   'Content-Type' : 'application/json'}
-    logger.debug('sending get request to  %s,', url)    
-    result = requests.get(url,auth=(config['user'],config['password']),headers=headers,data=json.dumps(data),verify=config['path_to_ca_cert'])
-    json_data = json.loads(result.text)
-    return json_data
+
 
 def getFromGrafanaApiAsUser(apiurl,data,username,password):
+
+#probably need to rewrite this!!
+
 #testing from command line
 # curl http://user:password@192.168.1.10:3000/api/org
     import requests
@@ -350,28 +290,6 @@ def getFromGrafanaApiAsUser(apiurl,data,username,password):
 
 
 
-
-def deleteFromGrafanaApi(apiurl):
-    import requests
-    config=settings.DASHBOARD
-    
-    if config['use_ssl']:
-        protocol='https://'
-    else:   
-        protocol='http://'
-    
-    url=protocol+config['host']+":"+config['port']+apiurl
-    
-    
-    headers = {'Accept': 'application/json',
-                   'Content-Type' : 'application/json'}
-       
-    result = requests.delete(url,auth=(config['user'],config['password']),headers=headers)
-    
-    json_data = json.loads(result.text)
-    return json_data
-
-
 def simpleLDAPQuery(cname):
     
     con=connectToLDAP() 
@@ -385,11 +303,11 @@ def simpleLDAPQuery(cname):
     
     return result
 
-def addToLDAPGroup(ldapUserName,groupName):
+def addToLDAPGroupOld(ldapUserName,groupName):
     con=connectToLDAP()
     old_members = dict()
     new_members = dict()
-    new_members['memberUid']=str(ldapUserName)
+    new_members['memberUid']=str(ldapUserName).encode('utf-8')
     old_members
     
     group_dn = 'cn='+groupName+','+settings.AUTH_LDAP_GROUPS_OU_DN
@@ -404,7 +322,61 @@ def addToLDAPGroup(ldapUserName,groupName):
         
     return    
 
+
+
+
+def getLDAPConn():
+    #ldap3
+    server = Server(settings.AUTH_LDAP_SERVER_URI, get_info=ALL)
+    logger.info('Connecting to ldap %s',settings.AUTH_LDAP_SERVER_URI )
+    con = Connection(server,settings.AUTH_LDAP_BIND_DN,settings.AUTH_LDAP_BIND_PASSWORD, auto_bind=True)
+    return con
+
+
+def createLDAPuser(new_user,password):
+    #returns true or false uses LDAP3  
+    con= getLDAPConn()
+    dn= str("cn=")+str(new_user.username)+str(",")+str(settings.AUTH_LDAP_USERS_OU_DN)
+    result=con.add(dn, 'inetOrgPerson', {
+        'givenName': new_user.first_name, 
+        'sn': new_user.last_name,
+        'mail': new_user.email,
+        'cn': new_user.username,
+        'displayName': str(new_user.id),
+        'uid': new_user.username,
+        'userPassword':password,
+        })
+    con.unbind()
+    return result
+
+def addToLDAPGroup(user_name,group_name):
+    
+    #returns true or false uses LDAP3  
+    con= getLDAPConn()
+    group_dn= str("cn=")+str(group_name)+str(",")+str(settings.AUTH_LDAP_GROUPS_OU_DN)
+    result=con.modify(group_dn,
+                      {'memberUid': (MODIFY_ADD, [user_name])
+    })
+    
+    print ("result is %s", result )
+    con.unbind()
+    return result
+
 def resetLDAPpassword(user_dn,new_password):
+     #returns True or False uses LDAP3  
+    con= getLDAPConn()
+    #group_dn= str("cn=")+str(group_name)+str(",")+str(settings.AUTH_LDAP_GROUPS_OU_DN)
+    result=con.modify(user_dn,
+                      {'userPassword': (MODIFY_REPLACE, [new_password])
+    })
+    
+   
+    logger.info('reset LDAP password for: %s', user_dn) 
+    logger.info('result of psw reset: %s', result)
+    con.unbind()
+    return result
+
+def resetLDAPpasswordold(user_dn,new_password):
     
     con=connectToLDAP()
     password_value= str(new_password)
@@ -422,11 +394,11 @@ def resetLDAPpassword(user_dn,new_password):
 
  
 def connectToLDAP():
-    
+    #old ldap-python to eliminate
     logger.info('connecting to LDAP on %s,', settings.AUTH_LDAP_SERVER_URI)
     try:
         
-        con = ldap.initialize(settings.AUTH_LDAP_SERVER_URI)
+        con = ldap.initialize(settings.AUTH_LDAP_SERVER_URI,bytes_mode=False)
         con.simple_bind_s(settings.AUTH_LDAP_BIND_DN, settings.AUTH_LDAP_BIND_PASSWORD)
         return con
     except Exception as e: 
