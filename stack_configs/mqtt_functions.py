@@ -4,7 +4,7 @@ from __future__ import division
 from builtins import str
 from past.utils import old_div
 from builtins import object
-from devices.models import device,channel,channel_tag
+from devices.models import Device,Channel,Channel_tag
 from hooks.models import person,place,product,hook
 from .models import sendToDB,sendToElastic,searchElastic,initializeElasticIndex,getRabbitConnection,getQueryInflux
 from django.utils.dateparse import parse_datetime

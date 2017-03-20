@@ -2,11 +2,11 @@ from django.contrib import admin
 
 # Register your models here
 
-from .models import section,device,channel,User,channel_tag
+from .models import Section,Device,Channel,User,Channel_tag
 
 
 class channelInline(admin.StackedInline):
-    model = channel
+    model = Channel
     extra = 1
 
   
@@ -69,6 +69,6 @@ admin.site.unregister(User)
 admin.site.register(User, UserAdmin)
 
 
-admin.site.register(section,sectionAdmin)
-admin.site.register(device,deviceAdmin)
-admin.site.register(channel_tag,channel_tagAdmin)
+admin.site.register(Section,sectionAdmin)
+admin.site.register(Device,deviceAdmin)
+admin.site.register(Channel_tag,channel_tagAdmin)

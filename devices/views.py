@@ -5,12 +5,14 @@ from django.template import loader
 from django.shortcuts import get_list_or_404
 from django.shortcuts import render
 from .forms import TestMessageForm
-from .models import device
+from .models import Device
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from stack_configs.models import connectToLDAP,resetLDAPpassword, simpleLDAPQuery,addToLDAPGroup
+#from stack_configs.models import connectToLDAP,resetLDAPpassword, simpleLDAPQuery,addToLDAPGroup
 from stack_configs.stack_functions import constructStatusList
 from stack_configs.mqtt_functions import MqttData,TopicData,processMessages
+from stack_configs.ldap_functions import createLDAPDevice,getLDAPConn,addToLDAPGroup
+
 
 import ldap.modlist
 
@@ -22,6 +24,22 @@ logger = logging.getLogger(__name__)
 
 @login_required(login_url='/admin/login/?next=/admin/')
 def index(request):
+    #test ldap auth
+    con=getLDAPConn()
+    con.search(settings.AUTH_LDAP_USERS_OU_DN, '(&(objectclass=inetOrgPerson)(uid=rtamudo))', attributes=['sn'])
+    print(con.entries[0].entry_to_ldif())
+    #search group
+    #con.search(settings.AUTH_LDAP_GROUPS_OU_DN, '(&(objectclass=posixGroup)(cn=active))',attributes=['gidNumber','memberUid']) 
+    con.search(settings.AUTH_LDAP_GROUPS_OU_DN, '(&(objectclass=posixGroup)(memberUid=rtamudo))',attributes=['cn','gidNumber']) 
+    
+    #dc=test,dc=com" "(&(cn=*)(memberUid=skimeer))
+    
+    print(con.entries[0].entry_to_ldif())
+    print(con.entries[1].entry_to_ldif())
+    print ("using dicts")
+    for entry in con.entries:
+        #print(entry.dn)
+        print(entry.cn)
         
     return HttpResponse("Hello, world. You're at the devices index.")
 
@@ -29,24 +47,36 @@ def index(request):
 @login_required(login_url='/admin/login/?next=/admin/')
 def resetPsw(request, device_id):
     template = loader.get_template('resetPsw.html')
-    my_objects = get_list_or_404(device,id=device_id, account=request.user)
+    my_objects = get_list_or_404(Device,id=device_id, account=request.user)
     mydevice= my_objects[0]
     password= id_generator()
-    response= initializeDeviceLDAP(mydevice,password)
-    output=""
-    topicFormat= str(mydevice.account.id)+"/"+str(mydevice.device_id)+"/*/*"
+    if(createLDAPDevice(mydevice, password)):
+        addToLDAPGroup(mydevice.device_id,'device')
+        output=""
+        topicFormat= str(mydevice.account.id)+"/"+str(mydevice.device_id)+"/*/*"
     #except Exception:
     #    output="We were unable to reset your password please contact your administrator"
-    context = {
-         'content':output,
-         'username': mydevice.device_id,
-         'password': password,
-         'topicFormat': topicFormat,
-         'has_permission':request.user.is_authenticated,
-         'is_popup':False,
-         'title':'Reset device password',
+        context = {
+            'content':output,
+            'username': mydevice.device_id,
+            'password': password,
+            'topicFormat': topicFormat,
+            'has_permission':request.user.is_authenticated,
+            'is_popup':False,
+            'title':'Reset device password',
          
-    }
+        }
+    else:
+        context = {
+            'content':"We were unable to create your device password. Try a different device ID or contact your administrator",
+            'username': mydevice.device_id,
+            'password': password,
+            'topicFormat': topicFormat,
+            'has_permission':request.user.is_authenticated,
+            'is_popup':False,
+            'title':'Unable to reset device password',
+         
+        }
     return HttpResponse(template.render(context, request))
 
 
@@ -57,51 +87,6 @@ def id_generator(size=10, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
 
 
-def initializeDeviceLDAP(device,password):
-             
-    #deviceID is unique to database. (as defined in models.devices
-    #deviceID could colide with (human) userNames.at present this will
-    #cause failure.
-    #uid is autonumeric id field from device table (not same as device id)
-    #add 1000000 so as not to colide with people uids.
-    
-    username=str(device.device_id)
-    
-    dn= str("cn="+str(username)+","+settings.AUTH_LDAP_USERS_OU_DN)
-    #check if entry already exists
-    result =simpleLDAPQuery(username)
-    
-    if (result==[]):
-        #create device in LDAP    
-        uidNumber= str(device.id + 1000000)
-    
-        con=connectToLDAP() 
-          
-        modlist={}
-        modlist['objectClass']=["inetOrgPerson", "posixAccount", "shadowAccount"]
-        modlist['sn']=str("lastname")
-        modlist['givenName']=str("first_name")
-        modlist['mail']= str("dontuse@mail.com")
-        modlist['cn']=str(username)
-        modlist['displayName']=str(username)
-        modlist['uid']=str(username)
-        modlist['uidNumber']=str(uidNumber)
-        modlist['gidNumber']=str(settings.AUTH_LDAP_DEVICES_DEFAULT_GID)
-        modlist['homeDirectory']=str("/home/zibawa/"+str(username))
-        modlist['userPassword']=str(password)
-    
-        
-# addModList transforms your dictionary into a list that is conform to ldap input.
-        result = con.add_s(dn, ldap.modlist.addModlist(modlist))
-                
-        addToLDAPGroup(username,'active')
-        addToLDAPGroup(username,'device') 
-    
-        return result
-    else:
-        #if doesnt exist we just reset password
-        result= resetLDAPpassword(dn,password)
-    return result 
     
 
 

@@ -13,7 +13,7 @@ from django.contrib.admin.utils import help_text_for_field
 from influxdb import InfluxDBClient,SeriesHelper
 import json
 import ldap #tobe elmimnated...
-from ldap3 import Server, Connection,ALL,MODIFY_ADD,MODIFY_REPLACE,MODIFY_DELETE
+
 
 import logging
 #from chardet.test import result
@@ -324,57 +324,54 @@ def addToLDAPGroupOld(ldapUserName,groupName):
 
 
 
-
-def getLDAPConn():
-    #ldap3
-    server = Server(settings.AUTH_LDAP_SERVER_URI, get_info=ALL)
-    logger.info('Connecting to ldap %s',settings.AUTH_LDAP_SERVER_URI )
-    con = Connection(server,settings.AUTH_LDAP_BIND_DN,settings.AUTH_LDAP_BIND_PASSWORD, auto_bind=True)
-    return con
-
-
-def createLDAPuser(new_user,password):
-    #returns true or false uses LDAP3  
-    con= getLDAPConn()
-    dn= str("cn=")+str(new_user.username)+str(",")+str(settings.AUTH_LDAP_USERS_OU_DN)
-    result=con.add(dn, 'inetOrgPerson', {
-        'givenName': new_user.first_name, 
-        'sn': new_user.last_name,
-        'mail': new_user.email,
-        'cn': new_user.username,
-        'displayName': str(new_user.id),
-        'uid': new_user.username,
-        'userPassword':password,
-        })
-    con.unbind()
-    return result
-
-def addToLDAPGroup(user_name,group_name):
+def initializeDeviceLDAPOld(device,password):
+             
+    #deviceID is unique to database. (as defined in models.devices
+    #deviceID could colide with (human) userNames.at present this will
+    #cause failure.
+    #uid is autonumeric id field from device table (not same as device id)
+    #add 1000000 so as not to colide with people uids.
     
-    #returns true or false uses LDAP3  
-    con= getLDAPConn()
-    group_dn= str("cn=")+str(group_name)+str(",")+str(settings.AUTH_LDAP_GROUPS_OU_DN)
-    result=con.modify(group_dn,
-                      {'memberUid': (MODIFY_ADD, [user_name])
-    })
+    username=str(device.device_id)
     
-    print ("result is %s", result )
-    con.unbind()
-    return result
+    dn= str("cn="+str(username)+","+settings.AUTH_LDAP_USERS_OU_DN)
+    #check if entry already exists
+    result =simpleLDAPQuery(username)
+    
+    if (result==[]):
+        #create device in LDAP    
+        uidNumber= str(device.id + 1000000)
+    
+        con=connectToLDAP() 
+          
+        modlist={}
+        modlist['objectClass']=["inetOrgPerson", "posixAccount", "shadowAccount"]
+        modlist['sn']=str("lastname")
+        modlist['givenName']=str("first_name")
+        modlist['mail']= str("dontuse@mail.com")
+        modlist['cn']=str(username)
+        modlist['displayName']=str(username)
+        modlist['uid']=str(username)
+        modlist['uidNumber']=str(uidNumber)
+        modlist['gidNumber']=str(settings.AUTH_LDAP_DEVICES_DEFAULT_GID)
+        modlist['homeDirectory']=str("/home/zibawa/"+str(username))
+        modlist['userPassword']=str(password)
+    
+        
+# addModList transforms your dictionary into a list that is conform to ldap input.
+        result = con.add_s(dn, ldap.modlist.addModlist(modlist))
+                
+        addToLDAPGroup(username,'active')
+        addToLDAPGroup(username,'device') 
+    
+        return result
+    else:
+        #if doesnt exist we just reset password
+        result= resetLDAPpassword(dn,password)
+    return result 
 
-def resetLDAPpassword(user_dn,new_password):
-     #returns True or False uses LDAP3  
-    con= getLDAPConn()
-    #group_dn= str("cn=")+str(group_name)+str(",")+str(settings.AUTH_LDAP_GROUPS_OU_DN)
-    result=con.modify(user_dn,
-                      {'userPassword': (MODIFY_REPLACE, [new_password])
-    })
-    
-   
-    logger.info('reset LDAP password for: %s', user_dn) 
-    logger.info('result of psw reset: %s', result)
-    con.unbind()
-    return result
+
+
 
 def resetLDAPpasswordold(user_dn,new_password):
     

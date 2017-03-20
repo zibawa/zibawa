@@ -4,9 +4,9 @@ from . import views
 
 urlpatterns = [
     url(r'^$', views.index, name='index'),
-    url(r'^createAccount/$', views.createAccount, name='create_account'),
+    url(r'^create_account/$', views.create_account, name='create_account'),
     url(r'^thanks/$', views.thanks, name='thanks'),
-    url(r'^accountCreateError/$', views.thanks, name='thanks'),
+    url(r'^account_create_error/$', views.account_create_error, name='account_create_error'),
     url(r'^change_password/$', views.zibawa_password_change,name='password_change'),
     url(r'^change_password/done/$', auth_views.password_change_done,name='password_change_done'),
     url(r'^password_reset/$', auth_views.password_reset,name='password_reset'),

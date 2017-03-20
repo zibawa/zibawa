@@ -49,7 +49,7 @@ import string
 #import user
 
 from .forms import UserForm
-from stack_configs.models import addToLDAPGroup,resetLDAPpassword,createLDAPuser
+from stack_configs.ldap_functions import addToLDAPGroup,resetLDAPpassword,createLDAPuser
 import logging
 
 LOGGER = logging.getLogger(__name__)
@@ -70,7 +70,7 @@ def index(request):
 
    
 
-def createAccount(request):
+def create_account(request):
     template = loader.get_template('admin/base_site.html')
     
     if request.method == "POST":
@@ -84,7 +84,7 @@ def createAccount(request):
                 if (addToLDAPGroup(new_user.username,'active')):
                     if (addToLDAPGroup(new_user.username,'editor')):
                         return HttpResponseRedirect('/thanks/')
-            return HttpResponseRedirect('/accountCreateError/')
+            return HttpResponseRedirect('/account_create_error/')
     else:
         form = UserForm() 
 
@@ -105,7 +105,7 @@ def thanks(request):
     }
     return HttpResponse(template.render(context, request))
 
-def accountCreateError(request):
+def account_create_error(request):
     
     template = loader.get_template('admin/base_site.html')
     
