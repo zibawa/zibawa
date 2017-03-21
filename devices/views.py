@@ -30,12 +30,12 @@ def index(request):
     print(con.entries[0].entry_to_ldif())
     #search group
     #con.search(settings.AUTH_LDAP_GROUPS_OU_DN, '(&(objectclass=posixGroup)(cn=active))',attributes=['gidNumber','memberUid']) 
-    con.search(settings.AUTH_LDAP_GROUPS_OU_DN, '(&(objectclass=posixGroup)(memberUid=rtamudo))',attributes=['cn','gidNumber']) 
+    con.search(settings.AUTH_LDAP_GROUPS_OU_DN, '(&(objectclass=posixGroup)(cn=active)(memberUid=rtamudo))',attributes=['cn','gidNumber']) 
     
     #dc=test,dc=com" "(&(cn=*)(memberUid=skimeer))
     
     print(con.entries[0].entry_to_ldif())
-    print(con.entries[1].entry_to_ldif())
+    #print(con.entries[1].entry_to_ldif())
     print ("using dicts")
     for entry in con.entries:
         #print(entry.dn)

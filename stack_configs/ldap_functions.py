@@ -33,17 +33,30 @@ def createLDAPDevice(new_device,password):
 
 def getLDAPConn():
     #ldap3
-    tls = Tls(validate=ssl.CERT_REQUIRED, version=ssl.PROTOCOL_TLSv1, ca_certs_file=settings.LDAP3['path_to_ca_cert'])
-    server = Server(settings.AUTH_LDAP_SERVER_URI, get_info=ALL,tls=tls)
-    logger.info('Connecting to ldap %s',settings.AUTH_LDAP_SERVER_URI )
+    dn=settings.AUTH_LDAP_BIND_DN
+    password= settings.AUTH_LDAP_BIND_PASSWORD
+    conn=getLDAPConnWithUser(dn, password)
+    return conn
    
-    con = Connection(server,settings.AUTH_LDAP_BIND_DN,settings.AUTH_LDAP_BIND_PASSWORD,auto_bind=False,raise_exceptions=True)
+
+def getLDAPConnWithUser(dn,password):
+    #ldap3
+    #returns bound connection object if user authenticated
+    
+    tls = Tls(validate=ssl.CERT_REQUIRED, version=ssl.PROTOCOL_TLSv1, ca_certs_file=settings.LDAP3['path_to_ca_cert'])
+    server = Server(settings.LDAP3['host'],port=settings.LDAP3['port'], get_info=ALL,tls=tls)
+    logger.info('Connecting to ldap as %s at %s',dn,settings.LDAP3['host'] )
+   
+    con = Connection(server,dn,password,auto_bind=False,raise_exceptions=settings.DEBUG)
     con.open()
     
     if settings.LDAP3['use_start_tls']:
         con.start_tls()
-    con.bind()    
+    con.bind()  
+        
     return con
+
+
 
 
 def createLDAPuser(new_user,password):
