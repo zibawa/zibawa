@@ -14,8 +14,6 @@ from stack_configs.mqtt_functions import MqttData,TopicData,processMessages
 from stack_configs.ldap_functions import createLDAPDevice,getLDAPConn,addToLDAPGroup
 
 
-import ldap.modlist
-
 import string
 import random
 import logging

@@ -34,16 +34,9 @@ from django.views.generic.base import TemplateView
 from django.views.generic.edit import FormView
 
 UserModel = get_user_model()
-
-
-
 from django.contrib.auth.models import User
 from django.http import HttpResponse
-
-
 from django.template import loader
-
-import ldap
 import random
 import string
 #import user

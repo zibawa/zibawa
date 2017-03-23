@@ -33,7 +33,12 @@
 <table id="status">
 <tr><th>Element</th><th>Status</th><th>Message</th></tr>
 {% for check in mqttChecksList %}
-<tr class={{check.status}}><td>{{check.name}}</td><td>{{check.status}}</td><td>{{check.message}}</td></tr>
+{% if check.status %}
+<tr class="OK">
+{% else %}
+<tr class="Failed">
+{% endif %}
+<td>{{check.name}}</td><td>{{check.status}}</td><td>{{check.message}}</td></tr>
 {% endfor %}
 </table>
 {% else %}
@@ -46,7 +51,13 @@
 <table id="status">
 <tr><th>Element</th><th>Status</th><th>Message</th></tr>
 {% for check in status_list %}
-<tr class={{check.status}}><td>{{check.name}}</td><td>{{check.status}}</td><td>{{check.message}}</td></tr>
+{% if check.status %}
+<tr class="OK">
+{% else %}
+<tr class="Failed">
+{% endif %}
+
+<td>{{check.name}}</td><td>{{check.status}}</td><td>{{check.message}}</td></tr>
 {% endfor %}
 </table>
 {% else %}

@@ -12,7 +12,7 @@ from genericpath import exists
 from django.contrib.admin.utils import help_text_for_field
 from influxdb import InfluxDBClient,SeriesHelper
 import json
-import ldap #tobe elmimnated...
+
 
 
 import logging
@@ -290,18 +290,7 @@ def getFromGrafanaApiAsUser(apiurl,data,username,password):
 
 
 
-def simpleLDAPQuery(cname):
-    
-    con=connectToLDAP() 
-    ldap_base = settings.AUTH_LDAP_USERS_OU_DN
-    query = "(cn="+cname+")"
-    try:
-        result = con.search_s(ldap_base, ldap.SCOPE_SUBTREE, query)
-        
-    except Exception as e: 
-        logger.warning('couldntAdd to LDAP group %s,', e)   
-    
-    return result
+
 
 def addToLDAPGroupOld(ldapUserName,groupName):
     con=connectToLDAP()

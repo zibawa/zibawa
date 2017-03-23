@@ -33,11 +33,11 @@ def constructStatusList(request):
     grafanaUpTest=testGrafanaUp 
     orgID= getGrafanaOrg(request.user)
     if not(isinstance(orgID, ( int, int ) )):
-        grafanaOrgTest=testObj("GrafanaLogIn","Failed","You need to sign in to Grafana Dashboard for the first time before it can be configured")
+        grafanaOrgTest=testObj("GrafanaLogIn",False,"You need to sign in to Grafana Dashboard for the first time before it can be configured")
         status_list=(rabbitMQTest,grafanaUpTest,grafanaOrgTest)
     else:
         influxTest=testInfluxDB(request.user)
-        grafanaOrgTest=testObj("GrafanaLogIn","OK","")   
+        grafanaOrgTest=testObj("GrafanaLogIn",True,"")   
         grafanaDataSourceTest=addDataBaseToGrafana(influxTest,orgID,request.user) 
         status_list=(rabbitMQTest,grafanaUpTest,grafanaOrgTest,influxTest,grafanaDataSourceTest)
     
@@ -45,13 +45,13 @@ def constructStatusList(request):
     
 def testConnectToRabbitMQ():
         
-    
+    result=sendToRabbitMQ('health.admin.test','testMessage')
     try: 
         result=sendToRabbitMQ('health.admin.test','testMessage')
-        output= testObj("rabbitMQ","OK","")
+        output= testObj("rabbitMQ",True,"")
     except Exception as e: #return str(e)
         #this is not sending any string as e dont know why
-        output= testObj("rabbitMQ","Failed","Contact your administrator, Grafana could not contact rabbitMQ")
+        output= testObj("rabbitMQ",False,"Contact your administrator, Grafana could not contact rabbitMQ")
         logger.critical('couldnt connect to rabbitMQ %s,', e)
             
     return output
@@ -61,9 +61,9 @@ def testGrafanaUp():
         data={}
         apiurl="/api/org"
         result=getFromGrafanaApi(apiurl, data,'GET')
-        output=testObj("Grafana Running","OK","")
+        output=testObj("Grafana Running",True,"")
     except Exception as e:
-        output=testObj("Grafana Running", "Failed","Contact your administrator, Zibawa cannot contact Grafana")
+        output=testObj("Grafana Running", False,"Contact your administrator, Zibawa cannot contact Grafana")
         logger.critical('could not connect to Grafana %s',e)
     return output
 
@@ -149,19 +149,19 @@ def addDataBaseToGrafana(influxTest,orgId,current_user):
             data['database']=influxTest.database
         
             result=getFromGrafanaApi(apiurl,data,'POST')
-            output= testObj("Grafana Data Source","OK",influxTest.database)
+            output= testObj("Grafana Data Source",True,influxTest.database)
         except Exception as e: 
             
             message= "Database:"+str(influxTest.database)
             
             logger.warning('Couldnt add datasource to Grafana Organization %s,', e)
-            output= testObj("Grafana Data Source","Failed",e)
+            output= testObj("Grafana Data Source",False,e)
     elif result['database']==influxTest.database:
           
-            output=testObj("Grafana Data Source","OK", influxTest.database)
+            output=testObj("Grafana Data Source",True, influxTest.database)
     else:
         message="unexpected datasource"+str(result['database'])
-        output=testObj("Grafana Data Source","Error",message)                
+        output=testObj("Grafana Data Source",False,message)                
 
    
     
@@ -169,24 +169,24 @@ def addDataBaseToGrafana(influxTest,orgId,current_user):
    
    
 def testInfluxDB(current_user):
-    #creates new database and read only user
+    #creates new database 
     #returns db name and credentials in array
 
-    output=testObj("influxDB","unknown","")
+    output=testObj("influxDB",False,"")
     output.database="dab"+str(current_user.id)
    
     try:
         client=getInfluxConnection()
         result=client.create_database(output.database)
         if not result:
-            output.status="OK"
+            output.status=True
             output.message="UserDatabase on-line"
     
         
     except Exception as e: 
         logger.warning('Couldnt create influxDB %s,', e)
         output.message='Could not create influxDB'
-        output.status='Failure'
+        output.status=False
         #credentials['success']=False
                 
     return output
