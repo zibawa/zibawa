@@ -134,7 +134,7 @@ def getInfluxConnection():
     logger.info('Connecting to influx %s', config['host'])
     
     try:
-        myClient = InfluxDBClient(host=config['host'],port=config['port'],username=config['user'],password=config['password'],ssl=config['use_ssl'])
+        myClient = InfluxDBClient(host=config['host'],port=config['port'],username=config['user'],password=config['password'],ssl=config['use_ssl'],verify_ssl=True)
     except Exception as e: 
         logger.critical('couldnt connect to influx %s,', e)
                            
@@ -260,7 +260,8 @@ def getFromGrafanaApi(apiurl,data,callType):
         body=encoded_data,
         headers=headers)
     json_data=json.loads(r.data.decode('utf-8'))
-    print(json_data)
+    logger.debug('grafana response %s',json_data)
+   
     return json_data
 
 
