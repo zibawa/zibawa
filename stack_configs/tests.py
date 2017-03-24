@@ -1,7 +1,7 @@
 from django.test import TestCase
 from django.conf import settings
 from stack_configs.ldap_functions import createLDAPuser,addToLDAPGroup,removeFromLDAPGroup,getLDAPConn
-from stack_configs.stack_functions import testGrafanaUp,testInfluxDB,testConnectToRabbitMQ
+from stack_configs.stack_functions import getFromGrafanaApi,testInfluxDB,testConnectToRabbitMQ
 import logging
 from stack_configs.models import getInfluxConnection
 logger = logging.getLogger(__name__)
@@ -39,8 +39,10 @@ class StackTests(TestCase):
     def test_bind_grafana(self):
         
         logger.info('tests: trying to bind to grafana')
-        test=testGrafanaUp()
-        self.assertEqual(test.status,True)    
+        data={}
+        apiurl="/api/org"
+        result=getFromGrafanaApi(apiurl, data,'GET')
+        self.assertEqual('result' in locals(),True)    
         # First check for the default behavior
         #will need to delete user from LDAP...
         '''
