@@ -5,7 +5,7 @@
 
 
 DAYS_TO_KEEP=7
-BACKUP_DIR=/home/zibawabackup/ldap
+BACKUP_DIR=/home/zibawabackup/ldap/
 SLAPCAT=/usr/sbin/slapcat
 
 FINAL_BACKUP_DIR=$BACKUP_DIR"`date +\%Y-\%m-\%d`-daily/"
@@ -18,10 +18,10 @@ FINAL_BACKUP_DIR=$BACKUP_DIR"`date +\%Y-\%m-\%d`-daily/"
         fi;
  
 
-nice ${SLAPCAT} -n 0 > ${FINAL_BACKUP_DIR}/config.ldif
-nice ${SLAPCAT} -n 1 > ${FINAL_BACKUP_DIR}/myserver.com.ldif
+nice ${SLAPCAT} -n 0 > ${FINAL_BACKUP_DIR}config.ldif
+nice ${SLAPCAT} -n 1 > ${FINAL_BACKUP_DIR}myserver.com.ldif
 
-chmod 640 ${FINAL_BACKUP_DIR}/*.ldif
+chmod 640 ${FINAL_BACKUP_DIR}*.ldif
 
 echo "Back ups completed in $FINAL_BACKUP_DIR"
 

@@ -2,7 +2,8 @@
 #this script will backup the configuration files listed below
 #
 $DAYS_TO_KEEP=60
-BACKUP_DIR=/home/zibawabackup/config
+#backup dir must end in slash
+BACKUP_DIR=/home/zibawabackup/config/
 
 FINAL_BACKUP_DIR=$BACKUP_DIR"`date +\%Y-\%m-\%d`-daily/"
  
@@ -13,17 +14,13 @@ FINAL_BACKUP_DIR=$BACKUP_DIR"`date +\%Y-\%m-\%d`-daily/"
                 exit 1;
         fi;
  
-cp /etc/nginx/conf.d/zibawa.conf ${FINAL_BACKUP_DIR}/nginx/zibawa.conf
-cp /etc/rabbit/rabbitmq.config ${FINAL_BACKUP_DIR}/rabbitmq.config
-cp /etc/grafana/grafana.ini ${FINAL_BACKUP_DIR}/grafana.ini
-cp /etc/grafana/ldap.toml ${FINAL_BACKUP_DIR}/ldap.toml
-cp /home/zibawa/zibawa/zibawa/settings.py ${FINAL_BACKUP_DIR}/settings.py
+cp /etc/nginx/conf.d/zibawa.conf ${FINAL_BACKUP_DIR}zibawa.conf
+cp /etc/rabbitmq/rabbitmq.config ${FINAL_BACKUP_DIR}rabbitmq.config
+cp /etc/grafana/grafana.ini ${FINAL_BACKUP_DIR}grafana.ini
+cp /etc/grafana/ldap.toml ${FINAL_BACKUP_DIR}ldap.toml
+cp /home/zibawa/zibawa/zibawa/settings.py ${FINAL_BACKUP_DIR}settings.py
 
 
-
-
-nice ${SLAPCAT} -n 0 > ${FINAL_BACKUP_DIR}/config.ldif
-nice ${SLAPCAT} -n 1 > ${FINAL_BACKUP_DIR}/myserver.com.ldif
 
 chmod 640 ${FINAL_BACKUP_DIR}/*.ldif
 
