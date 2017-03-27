@@ -336,7 +336,12 @@ def getFromGrafanaApi(apiurl,data,callType):
     )
 
     print(result.status_code)
-    return result
+    json_data=result.json()
+    #json.loads(result.data.decode('utf-8'))
+    logger.debug('grafana response %s',json_data)
+   
+    return json_data
+    
 
 #openssl s_client -connect zibawa.com:3000 -CAfile /home/julimatt/vps370273/fullchain.pem
 
