@@ -27,7 +27,10 @@ def getRabbitConnection():
     
     #setting heartbeat to 5 was an experiment to stop crashing, seems towork
     config=settings.RABBITMQ
-    
+    if settings.DASHBOARD['verify_certs']:
+        verifycerts= ssl.CERT_REQUIRED 
+    else:
+        verifycerts= ssl.CERT_NONE
     credentials = pika.PlainCredentials(config['user'],config['password'])
     cp = pika.ConnectionParameters(host=config['host'],
                                port=int(config['port']),
@@ -39,7 +42,7 @@ def getRabbitConnection():
                                    ca_certs=config['path_to_ca_cert'],
                                     keyfile=config['path_to_key'],
                                     certfile=config['path_to_client_cert'],
-                                    cert_reqs=ssl.CERT_REQUIRED
+                                    cert_reqs=verifycerts
                                    ))
                                
     return cp
@@ -134,7 +137,7 @@ def getInfluxConnection():
     logger.info('Connecting to influx %s', config['host'])
     
     try:
-        myClient = InfluxDBClient(host=config['host'],port=config['port'],username=config['user'],password=config['password'],ssl=config['use_ssl'],verify_ssl=True)
+        myClient = InfluxDBClient(host=config['host'],port=config['port'],username=config['user'],password=config['password'],ssl=config['use_ssl'],verify_ssl=config['verify_certs'])
     except Exception as e: 
         logger.critical('couldnt connect to influx %s,', e)
                            
@@ -228,7 +231,7 @@ def sendToInfluxCurlForTesting(indexName,jsonData,tags):
     return result   
 
 
-
+'''
 def getFromGrafanaApi(apiurl,data,callType):
     
     #call type= GET,POST,PUT,DELETE
@@ -258,12 +261,84 @@ def getFromGrafanaApi(apiurl,data,callType):
         callType,
         url= request_url,
         body=encoded_data,
-        headers=headers)
+        headers=headers,
+        )
     json_data=json.loads(r.data.decode('utf-8'))
     logger.debug('grafana response %s',json_data)
    
     return json_data
+'''
+'''
+def getFromGrafanaApi(apiurl,data,callType):
+    
+    #call type= GET,POST,PUT,DELETE
+    import urllib3
+    
+        
+    http = urllib3.PoolManager(
+    cert_reqs=None,
+    ca_certs='/home/julimatt/vps370273/fullchain.pem',         # Path to your certificate bundle.
+    )
+    
+    http=urllib3.PoolManager()
+    
+    auth= settings.DASHBOARD['user']+":"+settings.DASHBOARD['password']
+    
+    headers=urllib3.util.request.make_headers(keep_alive=None, accept_encoding='application/json', user_agent=None, basic_auth=auth, proxy_basic_auth=None, disable_cache=None)
+        
+    encoded_data = json.dumps(data).encode('utf-8')
+      
+    r = http.request(
+        callType,
+        url= 'https://zibawa.com:3000/api/org',
+        body=encoded_data,
+        headers=headers,
+        )
+    json_data=json.loads(r.data.decode('utf-8'))
+    logger.debug('grafana response %s',json_data)
+   
+    return json_data
+'''
+def getFromGrafanaApi(apiurl,data,callType):
 
+    from requests import Request, Session
+    
+    if settings.DASHBOARD['use_ssl']:
+        protocol='https://'
+        if settings.DASHBOARD['verify_certs']:
+            verifycerts= settings.DASHBOARD['path_to_ca_cert'] 
+        else:
+            verifycerts=False
+        
+    else:   
+        protocol='http://'
+        verifycerts=False
+    
+    
+    
+    url=protocol+settings.DASHBOARD['host']+":"+settings.DASHBOARD['port']+apiurl
+    #url= 'https://zibawa.com:3000/api/org'
+   
+    username= settings.DASHBOARD['user']
+    password= settings.DASHBOARD['password']
+    
+    headers = {'Accept': 'application/json',
+                   'Content-Type' : 'application/json','User-agent': 'Mozilla/5.0'}
+    
+    s = Session()
+    req = Request('GET',  url, data=data, headers=headers, auth=(username,password))
+
+    prepped = s.prepare_request(req)
+    
+    result = s.send(prepped,
+    verify=verifycerts,
+    
+    )
+
+    print(result.status_code)
+    return result
+
+#openssl s_client -connect zibawa.com:3000 -CAfile /home/julimatt/vps370273/fullchain.pem
 
 
 def getFromGrafanaApiAsUser(apiurl,data,username,password):

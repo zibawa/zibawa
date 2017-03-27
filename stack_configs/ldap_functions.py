@@ -42,8 +42,12 @@ def getLDAPConn():
 def getLDAPConnWithUser(dn,password):
     #ldap3
     #returns bound connection object if user authenticated
-    
-    tls = Tls(validate=ssl.CERT_REQUIRED, version=ssl.PROTOCOL_TLSv1, ca_certs_file=settings.LDAP3['path_to_ca_cert'])
+    if settings.LDAP3['validate_certs']:
+        validate=ssl.CERT_REQUIRED
+    else:
+        validate=ssl.CERT_NONE
+        
+    tls = Tls(validate=validate, version=ssl.PROTOCOL_TLSv1, ca_certs_file=settings.LDAP3['path_to_ca_cert'])
     server = Server(settings.LDAP3['host'],port=settings.LDAP3['port'], get_info=ALL,tls=tls)
     logger.info('Connecting to ldap as %s at %s',dn,settings.LDAP3['host'] )
    
