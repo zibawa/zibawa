@@ -44,7 +44,7 @@ class deviceAdmin(FilterUserAdmin):
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         #this function restricts choice of foreign key to those belonging to user/account
         if db_field.name == "section":
-            kwargs["queryset"] = section.objects.filter(account=request.user)
+            kwargs["queryset"] = Section.objects.filter(account=request.user)
         return super(deviceAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
 
     

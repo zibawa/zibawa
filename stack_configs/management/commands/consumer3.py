@@ -301,13 +301,11 @@ class ZibawaConsumer(object):
         :param str|unicode body: The message body
 
         """
-        LOGGER.info('Received message # %s from %s',basic_deliver.delivery_tag, properties.app_id)
-        
-       
+        self.acknowledge_message(basic_deliver.delivery_tag)
         myMqttData=MqttData(basic_deliver.routing_key,body)
         LOGGER.info("topic %s", myMqttData.topic)
         processMessages(myMqttData)
-        self.acknowledge_message(basic_deliver.delivery_tag)
+        
 
     def acknowledge_message(self, delivery_tag):
         """Acknowledge the message delivery from RabbitMQ by sending a
