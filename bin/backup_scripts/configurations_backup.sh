@@ -1,7 +1,7 @@
 #!/bin/bash
 #this script will backup the configuration files listed below
 #
-$DAYS_TO_KEEP=60
+DAYS_TO_KEEP=60
 #backup dir must end in slash
 BACKUP_DIR=/home/zibawabackup/config/
 
@@ -22,12 +22,13 @@ cp /home/zibawa/zibawa/zibawa/settings.py ${FINAL_BACKUP_DIR}settings.py
 
 
 
-chmod 640 ${FINAL_BACKUP_DIR}/*.ldif
+#chmod 640 ${FINAL_BACKUP_DIR}/*.*
 
 echo "Back ups completed in $FINAL_BACKUP_DIR"
 
 # DAILY BACKUPS
  
 # Delete daily backups n days old or more
-find $BACKUP_DIR -maxdepth 1 -mtime +$DAYS_TO_KEEP -name "*-daily" -exec rm -rf '{}' ';'
+
  
+find $BACKUP_DIR -maxdepth 1 -mtime +$DAYS_TO_KEEP -name "*-daily" -exec rm -rf '{}' ';'

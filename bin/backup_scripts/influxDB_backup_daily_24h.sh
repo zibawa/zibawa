@@ -4,7 +4,7 @@
 
 
 DB_NAME=dab51
-BACKUP_DIR=/home/zibawabackup/influxDB
+BACKUP_DIR=/home/zibawa/backups/influxDB
 DATE_FROM=$(date --rfc-3339=seconds --date='yesterday'| sed 's/ /T/')
 
 
