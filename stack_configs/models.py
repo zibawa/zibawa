@@ -299,48 +299,7 @@ def getFromGrafanaApi(apiurl,data,callType):
    
     return json_data
 '''
-def getFromGrafanaApi(apiurl,data,callType):
 
-    from requests import Request, Session
-    
-    if settings.DASHBOARD['use_ssl']:
-        protocol='https://'
-        if settings.DASHBOARD['verify_certs']:
-            verifycerts= settings.DASHBOARD['path_to_ca_cert'] 
-        else:
-            verifycerts=False
-        
-    else:   
-        protocol='http://'
-        verifycerts=False
-    
-    
-    
-    url=protocol+settings.DASHBOARD['host']+":"+settings.DASHBOARD['port']+apiurl
-    #url= 'https://zibawa.com:3000/api/org'
-   
-    username= settings.DASHBOARD['user']
-    password= settings.DASHBOARD['password']
-    
-    headers = {'Accept': 'application/json',
-                   'Content-Type' : 'application/json','User-agent': 'Mozilla/5.0'}
-    
-    s = Session()
-    req = Request('GET',  url, data=data, headers=headers, auth=(username,password))
-
-    prepped = s.prepare_request(req)
-    
-    result = s.send(prepped,
-    verify=verifycerts,
-    
-    )
-
-    print(result.status_code)
-    json_data=result.json()
-    #json.loads(result.data.decode('utf-8'))
-    logger.debug('grafana response %s',json_data)
-   
-    return json_data
     
 
 #openssl s_client -connect zibawa.com:3000 -CAfile /home/julimatt/vps370273/fullchain.pem

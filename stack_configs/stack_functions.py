@@ -10,7 +10,8 @@ from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 
 from .models import sendToRabbitMQ
-from .models import sendToRabbitMQ, getFromGrafanaApi,getInfluxConnection
+from .models import sendToRabbitMQ, getInfluxConnection
+from .grafana_functions import GrafanaUser,testGrafanaUp
 import random
 import string
 
@@ -21,28 +22,38 @@ class testObj(object):
 
     def __init__(self, name,status,message):
         self.name = name
-        self.status = status
-        self.message= message
+        self.status = status #true or false
+        self.message= message #error message human readable
 
       
+
+
+
 
 def constructStatusList(request):
     #statusList is list of status with error messages also used in device/testMessage view
 
     rabbitMQTest=testConnectToRabbitMQ 
     grafanaUpTest=testGrafanaUp 
-    orgID= getGrafanaOrg(request.user)
-    if not(isinstance(orgID, ( int, int ) )):
-        grafanaOrgTest=testObj("GrafanaLogIn",False,"You need to sign in to Grafana Dashboard for the first time before it can be configured")
-        status_list=(rabbitMQTest,grafanaUpTest,grafanaOrgTest)
+    grafana_user=GrafanaUser(request.user.id, request.user.username,"not_used",request.user.email)
+    if not (grafana_user.exists()):
+        grafanaUserTest= testObj("Grafana User",False,"You need to log in to Grafana")
+        status_list=(rabbitMQTest,grafanaUpTest,grafanaUserTest)
     else:
+        
         influxTest=testInfluxDB(request.user)
-        grafanaOrgTest=testObj("GrafanaLogIn",True,"")   
-        grafanaDataSourceTest=addDataBaseToGrafana(influxTest,orgID,request.user) 
-        status_list=(rabbitMQTest,grafanaUpTest,grafanaOrgTest,influxTest,grafanaDataSourceTest)
+        #grafanaDataSourceTest=addDataBaseToGrafana(influxTest,grafanaUserTest.message,request.user) 
+        if not (grafana_user.get_orgID()):
+            grafana_user.add_to_own_org()
+        grafana_user.fix_permissions()
+        grafanaDataSourceTest=testObj("GrafanaDataSource",grafana_user.add_datasource(),"")
+        
+        status_list=(rabbitMQTest,grafanaUpTest,grafanaUserTest,influxTest,grafanaDataSourceTest)
     
         return status_list
     
+    
+       
 def testConnectToRabbitMQ():
         
     result=sendToRabbitMQ('health.admin.test','testMessage')
@@ -55,119 +66,7 @@ def testConnectToRabbitMQ():
         logger.critical('couldnt connect to rabbitMQ %s,', e)
             
     return output
-
-def testGrafanaUp():
-    try:
-        data={}
-        apiurl="/api/org"
-        result=getFromGrafanaApi(apiurl, data,'GET')
-        output=testObj("Grafana Running",True,"")
-    except Exception as e:
-        output=testObj("Grafana Running", False,"Contact your administrator, Zibawa cannot contact Grafana")
-        logger.critical('could not connect to Grafana %s',e)
-    return output
-
-def getGrafanaOrg(current_user):    
-    
-    
-    #get orgID whose name is equal to email for the current user
-    #if fails returns error string
-    orgID=0
-    apiurl="/api/orgs/name/"+str(current_user.email)
-    data={}
-         
-    try:
-        result=getFromGrafanaApi(apiurl,data,'GET')    
-        orgID=result['id']
-        return orgID
-    except Exception as e: 
-        logger.critical('Couldnt find Grafana Organization %s,', e)
-        return str(e)
-
-    
-def addDataBaseToGrafana(influxTest,orgId,current_user):
-
-#adds influxDB datasource to Grafana organization based on array of credentials
- 
- 
- #get Grafana userID (ignore master Admin)
-    
-    apiurl="/api/orgs/"+str(orgId)+"/users"
-    data={}
-    results=getFromGrafanaApi(apiurl,data,'GET') 
-    for result in results:
-        #check if the login of the grafana user is the login of super user as defined in settings.py
-        if not (result['login']==settings.DASHBOARD['user']):
-            grafanaUser=result['userId']
-#get Grafana Datasource by name
-    
-    data={}
-    apiurl="/api/datasources/name/"+str(influxTest.database)
-    result=getFromGrafanaApi(apiurl,data,'GET') 
-    print(result)   
-    if not result or not 'database' in result:
-        #create the datasource
-        #add Admin user to the user-specific organization
-        try:
-        
-            data={
-                "loginOrEmail":settings.DASHBOARD['user'],
-                "role":"Admin"
-                }
-            apiurl="/api/orgs/"+str(orgId)+"/users"
-            result=getFromGrafanaApi(apiurl,data,'POST')
-                
-    #change admin level of user back to editor (grafana creates users with admin level)
-   
-    
-    
-            apiurl="/api/orgs/"+str(orgId)+"/users/"+str(grafanaUser)
-            data={"role":"Editor"}
-            result=getFromGrafanaApi(apiurl,data,'PATCH')
-        #change active organization (empty data array)
-            data={}
-            apiurl="/api/user/using/"+str(orgId)
-            result=getFromGrafanaApi(apiurl,data,'POST')
-         
-        #add datasource to organization
-            DBusername="dab"+str(current_user.username)
-            DBpassword=id_generator()
-            #createInfluxReadOnlyUser for database
-            client=getInfluxConnection()
-            result=client.create_user(DBusername, DBpassword, admin=False)
-            result=client.grant_privilege('read',influxTest.database,DBusername)
-        
-            apiurl= "/api/datasources"
-            data={}
-            data['name']=influxTest.database
-            data['type']="influxdb"
-            data['url']="http://localhost:8086"
-            data['access']="proxy"
-            data['basicAuth']=False
-            data['password']=DBpassword
-            data['user']= DBusername
-            data['database']=influxTest.database
-        
-            result=getFromGrafanaApi(apiurl,data,'POST')
-            output= testObj("Grafana Data Source",True,influxTest.database)
-        except Exception as e: 
-            
-            message= "Database:"+str(influxTest.database)
-            
-            logger.warning('Couldnt add datasource to Grafana Organization %s,', e)
-            output= testObj("Grafana Data Source",False,e)
-    elif result['database']==influxTest.database:
-          
-            output=testObj("Grafana Data Source",True, influxTest.database)
-    else:
-        message="unexpected datasource"+str(result['database'])
-        output=testObj("Grafana Data Source",False,message)                
-
-   
-    
-    return output
-   
-   
+  
 def testInfluxDB(current_user):
     #creates new database 
     #returns db name and credentials in array

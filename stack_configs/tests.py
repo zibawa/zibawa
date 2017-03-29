@@ -1,7 +1,9 @@
 from django.test import TestCase
 from django.conf import settings
+from django.contrib.auth.models import User
 from stack_configs.ldap_functions import createLDAPuser,addToLDAPGroup,removeFromLDAPGroup,getLDAPConn
-from stack_configs.stack_functions import getFromGrafanaApi,testInfluxDB,testConnectToRabbitMQ
+from stack_configs.stack_functions import testInfluxDB,testConnectToRabbitMQ
+from .grafana_functions import getFromGrafanaApi,GrafanaUser
 import logging
 from stack_configs.models import getInfluxConnection
 logger = logging.getLogger(__name__)
@@ -56,4 +58,44 @@ class StackTests(TestCase):
         logger.info('tests: trying to bind to rabbit')
         test=testConnectToRabbitMQ()
         self.assertEqual(test.status,True)   
+
+
+
+class GrafanaTests(TestCase):
+
+ 
+    
+    @classmethod
+    def setUpTestData(cls):
+        # createZibawaUser and GrafanaUser
         
+        
+        pass
+    
+    def test_get_grafana_user(self):
+        #do not seem to be able to create users with the same name or email as
+        #deleted users..so do not create users unnecesarily 
+        zibawa_user=User.objects.create(username="autotestuser4",first_name="test",last_name="test",email="autotest4@me.com")
+        grafana_user=GrafanaUser(zibawa_user.id, zibawa_user.username,"supersecret",zibawa_user.email)
+       
+        logger.info('tests: trying to find grafana user')
+        if not (grafana_user.exists()):
+        
+            logger.info('tests: trying to create grafana user')
+            self.assertEqual(grafana_user.create(),True)
+        
+        logger.info('tests: trying to find grafana user')
+        self.assertEqual(grafana_user.exists(),True)
+        logger.info('tests: trying to find non grafana admin org')
+        if not (grafana_user.get_orgID()):
+            grafana_user.add_to_own_org()
+        self.assertEqual(grafana_user.get_orgID(),True)
+        self.assertEqual(grafana_user.fix_permissions(),True)
+        self.assertEqual(grafana_user.add_datasource(),True)
+    
+    def tearDown(self):
+        #delete GrafanaUser
+        #check doesnt exist anymore
+        pass
+    
+    
