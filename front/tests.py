@@ -9,7 +9,8 @@ logger = logging.getLogger(__name__)
 #front tests
 # Create your tests here.
 
-testuser='autotestuser2'
+testuser='sprog4'
+testuseremail=testuser+"@autotest.com"
 
 class CreateAccountTestCase(TestCase):
 #note test which start in capitals only run when called by a test starting in small letter
@@ -22,7 +23,7 @@ class CreateAccountTestCase(TestCase):
         # First check for the default behavior
         #will need to delete user from LDAP...
         logger.info('test calling create_account')
-        response=self.client.post('/create_account/', {'username': testuser, 'password': 'secret', 'first_name':'fred','last_name':'test', 'email':'fred@me.com'})
+        response=self.client.post('/create_account/', {'username': testuser, 'password': 'secret', 'first_name':'fred','last_name':'test', 'email':testuseremail})
         self.assertRedirects(response, '/thanks/')
         
         #ensure cant login with a username that already exists
@@ -31,7 +32,7 @@ class CreateAccountTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         #ensure cant login with email that already exists
         logger.info('test trying to create username with email which already exists')
-        response=self.client.post('/create_account/', {'username': 'differenttestuser', 'password': 'secret', 'first_name':'fred','last_name':'test', 'email':'fred@me.com'})
+        response=self.client.post('/create_account/', {'username': 'differenttestuser', 'password': 'secret', 'first_name':'fred','last_name':'test', 'email':testuseremail})
         self.assertEqual(response.status_code, 200)
         
     def test_passwordChange(self):

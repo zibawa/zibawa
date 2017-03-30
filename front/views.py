@@ -43,9 +43,11 @@ import string
 
 from .forms import UserForm
 from stack_configs.ldap_functions import addToLDAPGroup,resetLDAPpassword,createLDAPuser
+from stack_configs.grafana_functions import GrafanaUser,testObj
+
 import logging
 
-LOGGER = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 # Create your views here.
 # Create your views here.
 #from django.contrib.auth.forms import UserCreationForm
@@ -56,7 +58,9 @@ def index(request):
          'content':result,
          'has_permission':request.user.is_authenticated,
          'is_popup':False,
-         'title':'welcome!'
+         'title':'welcome!',
+         'site_title':'zibawa',
+         'site_url':settings.SITE_URL
     }
     return HttpResponse(template.render(context, request))
 
@@ -76,12 +80,26 @@ def create_account(request):
             if (createLDAPuser(new_user,password)):
                 if (addToLDAPGroup(new_user.username,'active')):
                     if (addToLDAPGroup(new_user.username,'editor')):
-                        return HttpResponseRedirect('/thanks/')
+                        result=createAndConfigureGrafana(new_user,password)
+                        if (result.status):
+                            return HttpResponseRedirect('/thanks/')
             return HttpResponseRedirect('/account_create_error/')
     else:
         form = UserForm() 
 
-    return render(request, 'form.html', {'form': form}) 
+        
+    context = {
+                
+        'has_permission':request.user.is_authenticated,
+        'is_popup':False,
+        'form':form,
+        'title':'Send test message',
+        'site_title':'zibawa',
+        'site_url':settings.SITE_URL
+        }
+                        
+    return render(request,'form.html',context)
+    
     
 
 
@@ -95,6 +113,8 @@ def thanks(request):
          'title':'Your account has been created',
          'is_popup':False,
          'has_permission':request.user.is_authenticated,
+         'site_title':'zibawa',
+         'site_url':settings.SITE_URL
     }
     return HttpResponse(template.render(context, request))
 
@@ -108,42 +128,14 @@ def account_create_error(request):
          'title':'Error',
          'is_popup':False,
          'has_permission':request.user.is_authenticated,
+         'site_title':'zibawa',
+         'site_url':settings.SITE_URL
     }
     return HttpResponse(template.render(context, request))   
 
 def id_generator(size=10, chars=string.ascii_uppercase + string.digits):
     
     return ''.join(random.choice(chars) for _ in range(size))
-
-
-
-
-def initializeAccountOld(new_user,password):
-    
-    
-    con = ldap.initialize(settings.AUTH_LDAP_SERVER_URI, bytes_mode=False)
-    con.simple_bind_s(settings.AUTH_LDAP_BIND_DN,settings.AUTH_LDAP_BIND_PASSWORD)
-    dn= str("cn=")+str(new_user.username)+str(",")+str(settings.AUTH_LDAP_USERS_OU_DN)
-    
-    print("Adding", repr(dn))
-    
-    con.add_s(dn,
-     [
-        ("objectclass",[b"inetOrgPerson"]),
-        ("sn", [new_user.last_name.encode('utf-8')]),
-        ("givenName", [new_user.first_name.encode('utf-8')]),
-        ("mail",[new_user.email.encode('utf-8')]),
-        ("cn",[new_user.username.encode('utf-8')]),
-        ("displayName",[str(new_user.id).encode('utf-8')]),
-        ("uid",[new_user.username.encode('utf-8')]),
-        ("userPassword",[password.encode('utf-8')]),
-        
-     
-     ]
-       )
-       
-    addToLDAPGroup(new_user.username,'active')
-    addToLDAPGroup(new_user.username,'editor') 
 
 
 
@@ -195,7 +187,7 @@ def zibawa_password_reset_confirm(request, uidb64=None, token=None,
                     return HttpResponseRedirect(post_reset_redirect)
                 else:              
                 #if result from LDAP is not what we expect, or if no result
-                    LOGGER.warning('couldnt reset LDAP password %s,', result)  
+                    logger.warning('couldnt reset LDAP password')
                     title = _('Could not reset LDAP password')
                     #ZIBAWA MODIFICATIONS END HERE
                 
@@ -212,6 +204,8 @@ def zibawa_password_reset_confirm(request, uidb64=None, token=None,
         'validlink': validlink,
         'is_popup':False,
         'has_permission':request.user.is_authenticated,
+        'site_title':'zibawa',
+        'site_url':settings.SITE_URL
     }
     if extra_context is not None:
         context.update(extra_context)
@@ -245,19 +239,21 @@ def zibawa_password_change(request,
             user_dn= "cn="+str(request.user.username)+","+settings.AUTH_LDAP_USERS_OU_DN
             new_password = form.cleaned_data['new_password1']
             if(resetLDAPpassword(user_dn,new_password)):
-                LOGGER.debug('reset LDAP password')  
+                logger.debug('reset LDAP password')  
                 update_session_auth_hash(request, form.user)
                 return HttpResponseRedirect(post_change_redirect)
                                             
             #if result from LDAP is not what we expect, or if no result
             else:
-                LOGGER.warning('couldnt reset LDAP password')
+                logger.warning('couldnt reset LDAP password')
             
             context = {
                  'form': form,
                  'title': _('Could not reset LDAP password'),
                  'is_popup':False,
                  'has_permission':request.user.is_authenticated,
+                 'site_title':'zibawa',
+                 'site_url':settings.SITE_URL
                  }
             return TemplateResponse(request, template_name, context)
             #ZIBAWA MODIFICATIONS END HERE
@@ -270,6 +266,8 @@ def zibawa_password_change(request,
         'title': _('Password change'),
         'is_popup':False,
         'has_permission':request.user.is_authenticated,
+        'site_title':'zibawa',
+        'site_url':settings.SITE_URL
     }
     if extra_context is not None:
         context.update(extra_context)
@@ -277,3 +275,23 @@ def zibawa_password_change(request,
     return TemplateResponse(request, template_name, context)
 
 
+
+def createAndConfigureGrafana(zibawa_user,password):
+    
+    grafana_user=GrafanaUser(zibawa_user.id, zibawa_user.username,password,zibawa_user.email)
+    result=testObj("GrafanaAccount",True,"Your account already exists on Grafana from a previous installation please contact your administrator")
+    if not (grafana_user.exists()):
+        result=testObj("GrafanaAccount",False,"We were unable to create your dashboard account on Grafana, please contact your adminitrator")
+        logger.info('trying to create grafana user')
+        if grafana_user.create():
+            result=testObj("GrafanaAccount",True, "Your account has been created, but not configured")
+            logger.info("trying to find non grafana admin org")
+            if not (grafana_user.get_orgID()):
+                grafana_user.add_to_own_org()
+            logger.info("running fix permissions for Grafana")
+            grafana_user.fix_permissions()
+            logger.info("running add datasource for Grafana")
+            if (grafana_user.add_datasource()):
+                result=testObj("GrafanaAccount",True,"Your account has been created and configured")
+                   
+    return result

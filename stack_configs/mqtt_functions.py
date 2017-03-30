@@ -11,6 +11,7 @@ from django.utils.dateparse import parse_datetime
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.html import strip_tags
 from django.conf import settings
+from django.contrib.auth.models import User
 from google.protobuf import json_format
 import json
 import datetime
@@ -101,7 +102,7 @@ class TimeData(object):
 def getChannel(topicData):
 #assumes topic format sender/receiver/channel/format    
     try:
-        result= channel.objects.get(channel_id=topicData.channel,device__device_id=topicData.device)
+        result= Channel.objects.get(channel_id=topicData.channel,device__device_id=topicData.device)
     except:
         result='false'
         LOGGER.warning('channel not found on database for that device %s,%s', topicData.device,topicData.channel)
@@ -177,7 +178,9 @@ def processMessages(mqttData):
               
     tags={}
     #this defines the elasticsearch index or influxDatabase we will send to.       
-    index= "dab"+str(t.account)
+    username=User.objects.get(id=t.account)
+    print ("USERNAME IS %s",username)
+    index= "dab"+str(username)
     config=settings.DATASTORE
     if (config=='ELASTICSEARCH'):
         initializeElasticIndex(index)
@@ -320,7 +323,7 @@ def enrichChannel(c):
 def addChannel_Tags(c):
     tagsToAdd={}
     LOGGER.debug('Looking for channel_tags %s', c.device.device_desc)
-    results=channel_tag.objects.filter(channel=c)
+    results=Channel_tag.objects.filter(channel=c)
     i=1
     for result in results:
         LOGGER.debug('channel tag found %s', result.name)

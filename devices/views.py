@@ -62,6 +62,8 @@ def resetPsw(request, device_id):
             'has_permission':request.user.is_authenticated,
             'is_popup':False,
             'title':'Reset device password',
+            'site_title':'zibawa',
+            'site_url':settings.SITE_URL
          
         }
     else:
@@ -73,6 +75,8 @@ def resetPsw(request, device_id):
             'has_permission':request.user.is_authenticated,
             'is_popup':False,
             'title':'Unable to reset device password',
+            'site_title':'zibawa',
+            'site_url':settings.SITE_URL
          
         }
     return HttpResponse(template.render(context, request))
@@ -110,7 +114,9 @@ def testMessage(request):
                 'form':form,
                 'mqttChecksList':mqttChecksList,
                 'title':'Send test message',
-                'status_list':status_list
+                'site_title':'zibawa',
+                'status_list':status_list,
+                'site_url':settings.SITE_URL
          
                        }
                         
@@ -126,7 +132,10 @@ def testMessage(request):
                 'is_popup':False,
                 'form':form,
                 'title':'Send test message',
-                'status_list':status_list
+                'mqttChecksList':None,
+                'site_title':'zibawa',
+                'status_list':status_list,
+                'site_url':settings.SITE_URL
          
                         }
     return render(request, 'devices/testMessageForm.html', context)

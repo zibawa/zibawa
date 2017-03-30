@@ -36,21 +36,18 @@ def constructStatusList(request):
     rabbitMQTest=testConnectToRabbitMQ 
     grafanaUpTest=testGrafanaUp 
     grafana_user=GrafanaUser(request.user.id, request.user.username,"not_used",request.user.email)
-    if not (grafana_user.exists()):
-        grafanaUserTest= testObj("Grafana User",False,"You need to log in to Grafana")
-        status_list=(rabbitMQTest,grafanaUpTest,grafanaUserTest)
-    else:
-        
-        influxTest=testInfluxDB(request.user)
+    grafanaUserTest=grafana_user.exists()
+    grafanaUserTest=testObj("Grafana User",grafana_user.exists(),"")
+    influxTest=testInfluxDB(request.user)
         #grafanaDataSourceTest=addDataBaseToGrafana(influxTest,grafanaUserTest.message,request.user) 
-        if not (grafana_user.get_orgID()):
-            grafana_user.add_to_own_org()
+    if not(grafana_user.get_orgID):
+        grafana_user.add_to_own_org()
         grafana_user.fix_permissions()
-        grafanaDataSourceTest=testObj("GrafanaDataSource",grafana_user.add_datasource(),"")
+    grafanaDataSourceTest=testObj("GrafanaDataSource",grafana_user.add_datasource(),"")
         
-        status_list=(rabbitMQTest,grafanaUpTest,grafanaUserTest,influxTest,grafanaDataSourceTest)
+    status_list=(rabbitMQTest,grafanaUpTest,grafanaUserTest,influxTest,grafanaDataSourceTest)
     
-        return status_list
+    return status_list
     
     
        
@@ -72,7 +69,7 @@ def testInfluxDB(current_user):
     #returns db name and credentials in array
 
     output=testObj("influxDB",False,"")
-    output.database="dab"+str(current_user.id)
+    output.database="dab"+str(current_user.username)
    
     try:
         client=getInfluxConnection()

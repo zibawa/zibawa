@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.conf import settings
 from .models import getInfluxConnection
+
 import logging
 import email
 import json
@@ -9,6 +10,12 @@ import string
 
 logger = logging.getLogger(__name__)  
 
+class testObj(object):
+
+    def __init__(self, name,status,message):
+        self.name = name
+        self.status = status #true or false
+        self.message= message #error message human readable
 
 
 
@@ -65,6 +72,8 @@ class GrafanaUser(object):
         self.username=username
         self.password=password
         self.email=email
+        self.orgId=None
+        
         
         
     
@@ -185,20 +194,22 @@ class GrafanaUser(object):
     
     
     def found_own_org(self):
-        #searches for org with name==username, if not creates it
+        #searches for org with name==user.email, if not creates it
+        #when configured to do so, Grafana creates orgs automatically for users with name=email
+        
         apiurl="/api/orgs"
         data={}
         output=getFromGrafanaApi(apiurl,data,'GET')
         if (output.status_code==200):
             results=output.json()
             for result in results:
-                logger.debug('checking %s against %s,',result['name'],self.username)
-                if result['name']==self.username:
+                logger.debug('checking %s against %s,',result['name'],self.email)
+                if result['name']==self.email:
                     self.orgId=result['id']
-                    logger.info('Grafana org found for %s,',self.username)
+                    logger.info('Grafana org found for %s,',self.email)
                     return True
             apiurl="/api/orgs/"
-            data={"name": self.username}       
+            data={"name": self.email}       
             output=getFromGrafanaApi(apiurl,data,'POST')
             if (output.status_code==200):
                 logger.info('Grafana organization created for %s,',self.username)
@@ -230,14 +241,22 @@ class GrafanaUser(object):
         #change active organization
         #creates influx readonly user if it doesnt already exist and
         #resets password if it does
-        
+        #check to see if datasource exists first
+        if self.datasource_exists():
+            return True
+        #ensure that we have found our own orgID to add datasource to
+        if not self.found_own_org():
+            return False
+        #change active organization
         data={}
         apiurl="/api/user/using/"+str(self.orgId)
         result=getFromGrafanaApi(apiurl,data,'POST')
-         
+        if not(result.status_code==200):
+            logger.warning('unable to change user to organization %s',self.orgId)
+            return False 
         #add datasource to organization
-        DBname= "dab"+str(self.zibawaID)
-        DBusername="gu"+str(self.zibawaID)
+        DBname= "dab"+str(self.username)
+        DBusername="gu"+str(self.username)
         DBpassword=id_generator(size=20)
         
         #createInfluxReadOnlyUser for database
@@ -258,6 +277,7 @@ class GrafanaUser(object):
         data['password']=DBpassword
         data['user']= DBusername
         data['database']=DBname
+        data['isDefault']=True
         
         result=getFromGrafanaApi(apiurl,data,'POST')
         if (result.status_code==200):
@@ -275,7 +295,21 @@ class GrafanaUser(object):
     def datasource_exists(self):
         #check if grafana user organization has datasource associated
         #if not try to create
-        return
+        apiurl="/api/datasources"
+        datasourcename= "dab"+str(self.username)
+        data={}
+        output=getFromGrafanaApi(apiurl,data,'GET')
+        if (output.status_code==200):
+            results=output.json()
+            for result in results:
+                logger.debug('checking %s against %s,',result['name'],datasourcename)
+                if result['name']==datasourcename:
+                    self.datasourceID=result['id']
+                    logger.info('Grafana datasource found name %s id:%s,',datasourcename,str(self.datasourceID))
+                    return True
+        #if no datasource found, then try to add datasource
+        
+        return False
         
 
 
