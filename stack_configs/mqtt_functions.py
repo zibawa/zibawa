@@ -138,6 +138,8 @@ def processMessages(mqttData):
     data={}
     #first check for simple numeric value (it would also parse succesfully as json!)
     
+    LOGGER.debug("message %s,", mqttData.message)
+    
     try:
         value=float (mqttData.message)
         data['value']=value
@@ -147,9 +149,11 @@ def processMessages(mqttData):
         mqttChecksList.append(output)
     except:
         #then check for json   
+        
         try:
-            data=json.loads(mqttData.message)
-            #result.format='JSON'
+            #eliminate data=json.loads in production...
+            str_response = mqttData.message.decode('utf-8')
+            data=json.loads(str_response)
             LOGGER.debug('message json format %s', mqttData.topic)
             output=MqttCheck("Message Format","OK","JSON")
             mqttChecksList.append(output)
@@ -231,7 +235,7 @@ def processMessages(mqttData):
     result=len(tags)
     output=MqttCheck("Tags found","OK",result)
     mqttChecksList.append(output)
-    
+    LOGGER.debug("sending to index %s,", index)
     result=sendToDB(index,data,tags)
     if result==True:
         output=MqttCheck("Send Data","OK",result)  
@@ -277,17 +281,22 @@ def processHooks(listOfHooks):
     
 
 def checkAlarms(data,fieldToCheck,channel):
-    print("channel upperwarning %r" %(channel.upper_warning))
-    print("data field to check %r" % data[fieldToCheck])
-    if (float(data[fieldToCheck])>channel.upper_warning):
-        processAlarm(data,channel,'high')
-    elif (float(data[fieldToCheck])<channel.lower_warning):
-        processAlarm(data,channel,'low') 
-        
+   
+    #if message doesnt contain the field to check, or if data non numeric then will fail
+    try:
+        if (float(data[fieldToCheck])>channel.upper_warning):
+            processAlarm(data,channel,'high')
+        elif (float(data[fieldToCheck])<channel.lower_warning):
+            processAlarm(data,channel,'low') 
+    except:
+        LOGGER.warning("error processing alarm on channel %s checking value %s",channel,fieldToCheck)    
+
+
 def processAlarm(data,channel,status):   
     if (channel.alarm_email):
         message="Channel alarm, status %r" %(status)
-        print(message)
+        LOGGER.warning("alarm raised on channel: no email configured %s %s",channel.channel_id, status)    
+
         
             
 def date_handler(obj):

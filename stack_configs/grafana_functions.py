@@ -38,7 +38,7 @@ def getFromGrafanaApi(apiurl,data,callType):
     
     url=protocol+settings.DASHBOARD['host']+":"+settings.DASHBOARD['port']+apiurl
     #url= 'https://zibawa.com:3000/api/org'
-    logger.debug('making request to grafana %s',url)
+    logger.debug('making %s request to grafana %s',callType,url)
     username= settings.DASHBOARD['user']
     password= settings.DASHBOARD['password']
     
@@ -77,8 +77,7 @@ class GrafanaUser(object):
         
         
     
-        '''POST http://localhost/grafana/api/orgs/
-            {name: "My other new org"}     '''
+        
 
     def create(self):
                 
@@ -216,7 +215,7 @@ class GrafanaUser(object):
                 result=output.json()
                 self.orgId=result['orgId']
                 return True
-            logger.info('Could not create Grafana org %s error %s,',self.username,result.status_code)
+            logger.info('Could not create Grafana org %s error %s,',self.username,output.status_code)
         
         return False
         
@@ -241,9 +240,7 @@ class GrafanaUser(object):
         #change active organization
         #creates influx readonly user if it doesnt already exist and
         #resets password if it does
-        #check to see if datasource exists first
-        if self.datasource_exists():
-            return True
+        
         #ensure that we have found our own orgID to add datasource to
         if not self.found_own_org():
             return False
@@ -254,12 +251,22 @@ class GrafanaUser(object):
         if not(result.status_code==200):
             logger.warning('unable to change user to organization %s',self.orgId)
             return False 
+        
+        #check to see if datasource exists once we have changed active organization
+        logger.debug('Adding datasource.  Checking if datasource already exists for %s,',self.username)
+        if self.datasource_exists():
+            logger.debug('datasource already exists %s,',self.username)
+            return True
+        
+               
+        
         #add datasource to organization
         DBname= "dab"+str(self.username)
         DBusername="gu"+str(self.username)
         DBpassword=id_generator(size=20)
         
         #createInfluxReadOnlyUser for database
+        logger.debug('trying to create influx user for datasource %s',DBusername)
         client=getInfluxConnection()
         try:
             result=client.create_user(DBusername, DBpassword, admin=False)
@@ -281,17 +288,29 @@ class GrafanaUser(object):
         
         result=getFromGrafanaApi(apiurl,data,'POST')
         if (result.status_code==200):
-            return True
             logger.debug('data source added %s',DBname)
+            return True
         else:
-            return False
             logger.warning('could not add datasource %s',result.json())
-            
+            return False
                   
-
-   
-    
+    def changeGrafanaPassword(self):
+        
+        #sets Grafana psw to the psw fed into the GrafanaUser object when created
+        #called from psw reset functions in zibawa
+        
+        #check that user exists in Grafana, and obtain self.id
+        if not self.exists():
+            return False
+        
+        apiurl="/api/admin/users/"+str(self.id)+"/password"
+        data={"password":self.password
+            }
+        output=getFromGrafanaApi(apiurl,data,'PUT')
+        if (output.status_code==200):
+            return True
         return False
+    
     def datasource_exists(self):
         #check if grafana user organization has datasource associated
         #if not try to create
@@ -377,7 +396,7 @@ def getGrafanaOrgFromGrafanaUser(grafana_user_ID):
     logger.info('Grafana org not found for userid %s,',grafana_user_ID)
     return output
 
-   
+'''   
 def addDataBaseToGrafana(influxTest,grafana_user_id,current_user):
 
 #adds influxDB datasource to Grafana organization based on array of credentials
@@ -466,10 +485,8 @@ def addDataBaseToGrafana(influxTest,grafana_user_id,current_user):
    
     
     return output
-
+    '''
 
 def id_generator(size=10, chars=string.ascii_uppercase + string.digits):
     
-    return ''.join(random.choice(chars) for _ in range(size))
-  
- 
+    return ''.join(random.choice(chars) for _ in range(size)) 

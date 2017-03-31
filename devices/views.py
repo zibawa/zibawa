@@ -51,7 +51,7 @@ def resetPsw(request, device_id):
     if(createLDAPDevice(mydevice, password)):
         addToLDAPGroup(mydevice.device_id,'device')
         output=""
-        topicFormat= str(mydevice.account.id)+"/"+str(mydevice.device_id)+"/*/*"
+        topicFormat= str(mydevice.account.id)+"."+str(mydevice.device_id)+".*.*"
     #except Exception:
     #    output="We were unable to reset your password please contact your administrator"
         context = {
@@ -70,8 +70,8 @@ def resetPsw(request, device_id):
         context = {
             'content':"We were unable to create your device password. Try a different device ID or contact your administrator",
             'username': mydevice.device_id,
-            'password': password,
-            'topicFormat': topicFormat,
+            'password': "",
+            'topicFormat': "",
             'has_permission':request.user.is_authenticated,
             'is_popup':False,
             'title':'Unable to reset device password',
@@ -104,7 +104,7 @@ def testMessage(request):
         # check whether it's valid:
         if form.is_valid():
             #check that user is sending data on their own account
-            
+            logger.debug('form valid, processing message')
             testMsg = MqttData(form.cleaned_data['topic'],form.cleaned_data['message'])
             mqttChecksList=processMessages(testMsg)
             context = {
@@ -121,11 +121,13 @@ def testMessage(request):
                        }
                         
             return render(request,'devices/testMessageForm.html',context)
-        
+        logger.debug('form not valid, reprinting form')
 
     # if a GET (or any other method) we'll create a blank form
     else:
         form = TestMessageForm(user=request.user)
+        logger.debug('no post data received reprinting form')
+
     context = {
                 
                 'has_permission':request.user.is_authenticated,

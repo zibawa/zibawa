@@ -38,7 +38,7 @@ def constructStatusList(request):
     grafana_user=GrafanaUser(request.user.id, request.user.username,"not_used",request.user.email)
     grafanaUserTest=grafana_user.exists()
     grafanaUserTest=testObj("Grafana User",grafana_user.exists(),"")
-    influxTest=testInfluxDB(request.user)
+    influxTest=createInfluxDB(request.user) #creates influxdb if doesnt exist
         #grafanaDataSourceTest=addDataBaseToGrafana(influxTest,grafanaUserTest.message,request.user) 
     if not(grafana_user.get_orgID):
         grafana_user.add_to_own_org()
@@ -64,7 +64,7 @@ def testConnectToRabbitMQ():
             
     return output
   
-def testInfluxDB(current_user):
+def createInfluxDB(current_user):
     #creates new database 
     #returns db name and credentials in array
 
@@ -74,9 +74,8 @@ def testInfluxDB(current_user):
     try:
         client=getInfluxConnection()
         result=client.create_database(output.database)
-        if not result:
-            output.status=True
-            output.message="UserDatabase on-line"
+        output.status=True
+        output.message="UserDatabase on-line"
     
         
     except Exception as e: 

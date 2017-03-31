@@ -120,13 +120,13 @@ def calculateAll(sim,sim_time):
         #print "v %r" %(v)
         data={}
         data['timestamp']=sim_time      
-        data['value']=str(v)
+        data['value']=v
         
         
         json_data = json.dumps(data,default=date_handler)
         topic= str(simulation_account.id)+"."+thing.device.device_id+".2.1"
         #topic format - account.deviceID.appID(messageformat).channel  format2 defined as timestamp + value (format1= rfid tag)
-        logger.info('trying to send to topic %s',topic)       
+        logger.info('trying to send to topic %s, message: %s',topic,json_data)       
         try: 
             sendToRabbitMQ(topic,json_data)
             

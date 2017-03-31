@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.conf import settings
 from django.contrib.auth.models import User
 from stack_configs.ldap_functions import createLDAPuser,addToLDAPGroup,removeFromLDAPGroup,getLDAPConn
-from stack_configs.stack_functions import testInfluxDB,testConnectToRabbitMQ
+from stack_configs.stack_functions import createInfluxDB,testConnectToRabbitMQ
 from .grafana_functions import getFromGrafanaApi,GrafanaUser
 import logging
 from stack_configs.models import getInfluxConnection

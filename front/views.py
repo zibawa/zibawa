@@ -42,6 +42,7 @@ import string
 #import user
 
 from .forms import UserForm
+from stack_configs.stack_functions import createInfluxDB
 from stack_configs.ldap_functions import addToLDAPGroup,resetLDAPpassword,createLDAPuser
 from stack_configs.grafana_functions import GrafanaUser,testObj
 
@@ -82,7 +83,8 @@ def create_account(request):
                     if (addToLDAPGroup(new_user.username,'editor')):
                         result=createAndConfigureGrafana(new_user,password)
                         if (result.status):
-                            return HttpResponseRedirect('/thanks/')
+                            if createInfluxDB(new_user): #creates a user database in influx
+                                return HttpResponseRedirect('/thanks/')
             return HttpResponseRedirect('/account_create_error/')
     else:
         form = UserForm() 
@@ -105,7 +107,7 @@ def create_account(request):
 
 def thanks(request):
     
-    template = loader.get_template('admin/base_site.html')
+    template = loader.get_template('thanks.html')
     
         
     context = {
@@ -124,7 +126,7 @@ def account_create_error(request):
     
         
     context = {
-         'content':'Sorry. We could not create your account. Please contact your administrator',
+         'content':'Sorry. Something went wrong during the creation of your account. Please contact your administrator',
          'title':'Error',
          'is_popup':False,
          'has_permission':request.user.is_authenticated,
@@ -184,6 +186,15 @@ def zibawa_password_reset_confirm(request, uidb64=None, token=None,
                 user_dn= "cn="+str(user.username)+","+settings.AUTH_LDAP_USERS_OU_DN
                 new_password = form.cleaned_data['new_password1']
                 if(resetLDAPpassword(user_dn,new_password)):
+                    
+                    #change Grafana password 
+                    grafana_user=GrafanaUser(request.user.id, request.user.username,new_password,request.user.email)
+                    logger.debug('resetting Grafana password for %s',request.user.username) 
+                    if not (grafana_user.changeGrafanaPassword()):
+                        #if fails, currently we log but carry on regardless.
+                        logger.warning('couldnt reset Grafana password for %s',request.user.username)
+               
+                    
                     return HttpResponseRedirect(post_reset_redirect)
                 else:              
                 #if result from LDAP is not what we expect, or if no result
@@ -241,6 +252,14 @@ def zibawa_password_change(request,
             if(resetLDAPpassword(user_dn,new_password)):
                 logger.debug('reset LDAP password')  
                 update_session_auth_hash(request, form.user)
+                
+                #change Grafana password 
+                grafana_user=GrafanaUser(request.user.id, request.user.username,new_password,request.user.email)
+                logger.debug('resetting Grafana password for %s',request.user.username) 
+                if not (grafana_user.changeGrafanaPassword()):
+                    #if fails, currently we carry on regardless.
+                    logger.warning('couldnt reset Grafana password for %s',request.user.username)
+                
                 return HttpResponseRedirect(post_change_redirect)
                                             
             #if result from LDAP is not what we expect, or if no result

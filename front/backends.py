@@ -60,6 +60,9 @@ class OpenLdapBackend(object):
                 user.is_active = settings.LDAP3_USER_FLAGS_BY_GROUP['is_active'] in grouplist
                 user.is_staff = settings.LDAP3_USER_FLAGS_BY_GROUP['is_staff'] in grouplist
                 user.is_superuser = settings.LDAP3_USER_FLAGS_BY_GROUP['is_superuser'] in grouplist
+                logger.debug('user %s active %s', username,user.is_active)
+                logger.debug('user %s superuser %s ', username,user.is_superuser)
+                logger.debug('user %s staff %s ', username,user.is_staff)
                 
                 search_filter= '(&(objectclass=inetOrgPerson)(uid='+str(username)+'))'
                 logger.debug('searching for attributes for %s',search_filter)

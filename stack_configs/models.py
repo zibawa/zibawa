@@ -131,7 +131,7 @@ def searchElastic(indexName,query):
 
             
 def getInfluxConnection():
-    #will change name of object elasticDbase in future
+    
     config=settings.INFLUXDB
     
     logger.info('Connecting to influx %s', config['host'])
@@ -179,18 +179,16 @@ def sendToInflux(indexName,jsonData,tags):
     logger.debug('fields %s', json_fields)
     #above for statements for debugging only
     json_body=[d]
-    
-    try:
-        client.create_database(indexName)
-    except Exception as e: 
-        logger.critical('couldnt create database %s,', e)   
+    logger.debug('trying db create') 
+       
     try:
         res=client.write_points(json_body,database=indexName)
+        logger.info('influx write result %s,', res) 
     except Exception as e: 
         logger.warning('couldnt write to database %s,', e) 
     #result = client.query('select value from cpu_load_short;')
         res=e    
-    
+    logger.warning('returning res %s,', res)     
     return res
 
 
@@ -231,208 +229,6 @@ def sendToInfluxCurlForTesting(indexName,jsonData,tags):
     return result   
 
 
-'''
-def getFromGrafanaApi(apiurl,data,callType):
-    
-    #call type= GET,POST,PUT,DELETE
-    import urllib3
-        
-    if settings.DASHBOARD['use_ssl']:
-        protocol='https://'
-        cert_reqs='CERT_REQUIRED' # Force certificate check.
-    else:   
-        protocol='http://'
-        cert_reqs=None #
-        
-    http = urllib3.PoolManager(
-    cert_reqs=cert_reqs,
-    ca_certs=settings.DASHBOARD['path_to_ca_cert'],         # Path to your certificate bundle.
-    )
-    
-    auth= settings.DASHBOARD['user']+":"+settings.DASHBOARD['password']
-    headers=urllib3.util.request.make_headers(keep_alive=None, accept_encoding='application/json', user_agent=None, basic_auth=auth, proxy_basic_auth=None, disable_cache=None)
-        
-    encoded_data = json.dumps(data).encode('utf-8')
-        
-        
-    request_url=protocol+settings.DASHBOARD['host']+":"+settings.DASHBOARD['port']+apiurl
-    logger.debug('sending http request to  %s,', request_url)     
-    r = http.request(
-        callType,
-        url= request_url,
-        body=encoded_data,
-        headers=headers,
-        )
-    json_data=json.loads(r.data.decode('utf-8'))
-    logger.debug('grafana response %s',json_data)
-   
-    return json_data
-'''
-'''
-def getFromGrafanaApi(apiurl,data,callType):
-    
-    #call type= GET,POST,PUT,DELETE
-    import urllib3
-    
-        
-    http = urllib3.PoolManager(
-    cert_reqs=None,
-    ca_certs='/home/julimatt/vps370273/fullchain.pem',         # Path to your certificate bundle.
-    )
-    
-    http=urllib3.PoolManager()
-    
-    auth= settings.DASHBOARD['user']+":"+settings.DASHBOARD['password']
-    
-    headers=urllib3.util.request.make_headers(keep_alive=None, accept_encoding='application/json', user_agent=None, basic_auth=auth, proxy_basic_auth=None, disable_cache=None)
-        
-    encoded_data = json.dumps(data).encode('utf-8')
-      
-    r = http.request(
-        callType,
-        url= 'https://zibawa.com:3000/api/org',
-        body=encoded_data,
-        headers=headers,
-        )
-    json_data=json.loads(r.data.decode('utf-8'))
-    logger.debug('grafana response %s',json_data)
-   
-    return json_data
-'''
-
-    
-
-#openssl s_client -connect zibawa.com:3000 -CAfile /home/julimatt/vps370273/fullchain.pem
-
-
-def getFromGrafanaApiAsUser(apiurl,data,username,password):
-
-#probably need to rewrite this!!
-
-#testing from command line
-# curl http://user:password@192.168.1.10:3000/api/org
-    import requests
-    config=settings.DASHBOARD
-    if config['use_ssl']:
-        protocol='https://'
-    else:   
-        protocol='http://'
-    
-    url=protocol+config['host']+":"+config['port']+apiurl
-    
-    
-    headers = {'Accept': 'application/json',
-                   'Content-Type' : 'application/json'}
-       
-    result = requests.get(url,auth=(username,password),headers=headers,data=json.dumps(data))
-    json_data = json.loads(result.text)
-    return json_data
-
-
-
-
-
-def addToLDAPGroupOld(ldapUserName,groupName):
-    con=connectToLDAP()
-    old_members = dict()
-    new_members = dict()
-    new_members['memberUid']=str(ldapUserName).encode('utf-8')
-    old_members
-    
-    group_dn = 'cn='+groupName+','+settings.AUTH_LDAP_GROUPS_OU_DN
-    
-    try:
-        ldif = ldap.modlist.modifyModlist(old_members,new_members)
-        con.modify_s(group_dn, ldif)
-        con.unbind_s()
-    except Exception as e: 
-        logger.warning('couldntAdd to LDAP group %s,', e)   
-    
-        
-    return    
-
-
-
-def initializeDeviceLDAPOld(device,password):
-             
-    #deviceID is unique to database. (as defined in models.devices
-    #deviceID could colide with (human) userNames.at present this will
-    #cause failure.
-    #uid is autonumeric id field from device table (not same as device id)
-    #add 1000000 so as not to colide with people uids.
-    
-    username=str(device.device_id)
-    
-    dn= str("cn="+str(username)+","+settings.AUTH_LDAP_USERS_OU_DN)
-    #check if entry already exists
-    result =simpleLDAPQuery(username)
-    
-    if (result==[]):
-        #create device in LDAP    
-        uidNumber= str(device.id + 1000000)
-    
-        con=connectToLDAP() 
-          
-        modlist={}
-        modlist['objectClass']=["inetOrgPerson", "posixAccount", "shadowAccount"]
-        modlist['sn']=str("lastname")
-        modlist['givenName']=str("first_name")
-        modlist['mail']= str("dontuse@mail.com")
-        modlist['cn']=str(username)
-        modlist['displayName']=str(username)
-        modlist['uid']=str(username)
-        modlist['uidNumber']=str(uidNumber)
-        modlist['gidNumber']=str(settings.AUTH_LDAP_DEVICES_DEFAULT_GID)
-        modlist['homeDirectory']=str("/home/zibawa/"+str(username))
-        modlist['userPassword']=str(password)
-    
-        
-# addModList transforms your dictionary into a list that is conform to ldap input.
-        result = con.add_s(dn, ldap.modlist.addModlist(modlist))
-                
-        addToLDAPGroup(username,'active')
-        addToLDAPGroup(username,'device') 
-    
-        return result
-    else:
-        #if doesnt exist we just reset password
-        result= resetLDAPpassword(dn,password)
-    return result 
-
-
-
-
-def resetLDAPpasswordold(user_dn,new_password):
-    
-    con=connectToLDAP()
-    password_value= str(new_password)
-    add_pass = [(ldap.MOD_REPLACE, 'userPassword', [password_value])]
-    try:
-        result= con.modify_s(user_dn,add_pass)
-        con.unbind_s()
-        return result
-    except Exception as e: 
-        
-        logger.warning('couldntreset LDAP password %s,', e)   
-        result=None
-        return result
-
-
- 
-def connectToLDAP():
-    #old ldap-python to eliminate
-    logger.info('connecting to LDAP on %s,', settings.AUTH_LDAP_SERVER_URI)
-    try:
-        
-        con = ldap.initialize(settings.AUTH_LDAP_SERVER_URI,bytes_mode=False)
-        con.simple_bind_s(settings.AUTH_LDAP_BIND_DN, settings.AUTH_LDAP_BIND_PASSWORD)
-        return con
-    except Exception as e: 
-        logger.warning('couldntConnect to LDAP %s,', e)   
-        return 
-     
-    
-    return con  
 
 
 

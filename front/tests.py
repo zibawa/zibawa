@@ -35,9 +35,9 @@ class CreateAccountTestCase(TestCase):
         response=self.client.post('/create_account/', {'username': 'differenttestuser', 'password': 'secret', 'first_name':'fred','last_name':'test', 'email':testuseremail})
         self.assertEqual(response.status_code, 200)
         
-    def test_passwordChange(self):
+    def Test_passwordChange(self):
         
-        self.Test_create_client()
+        
         logger.info('test starting test password change')
         logger.info('test logging in')
         response= self.client.login(username=testuser, password='secret')
@@ -53,9 +53,36 @@ class CreateAccountTestCase(TestCase):
         logger.info('test login with new password')
         response= self.client.login(username=testuser, password='verysecret')
              
+    def Test_all_pages(self):
+        #get all pages
+        response= self.client.login(username=testuser, password='verysecret')
+        
+        #make sure user has permissions, in zibawa and ldap!
+        admin_pages = [
+            "/create_account/",
+            "/thanks/",
+            "/account_create_error/",
+            "/change_password/done/",
+            "/password_reset/",
+            "/password_reset_done/",
+            "/login/",
+           
+        ]
+        for page in admin_pages:
+            logger.info('testing GET page %s',page)
+            response = self.client.get(page)
+            self.assertEqual(response.status_code, 200)
+      
+        response= self.client.get("/logout/")
+        self.assertEqual(response.status_code, 302)
     
     
     
+          
+    def test_All(self):
+        self.Test_create_client()
+        self.Test_passwordChange()
+        self.Test_all_pages()
         
     
     def tearDown(self):
