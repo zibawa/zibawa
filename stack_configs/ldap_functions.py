@@ -10,22 +10,26 @@ logger = logging.getLogger(__name__)
 
 def createLDAPDevice(new_device,password):
     #returns true or false uses LDAP3  
-    uidNumber= str(new_device.id + 1000000)
     
-    con= getLDAPConn()
-    dn= str("cn=")+str(new_device.device_id)+str(",")+str(settings.AUTH_LDAP_USERS_OU_DN)
-    result=con.add(dn, 'inetOrgPerson', {
-        'givenName': 'device', 
-        'sn': 'device',
-        'mail': 'dontuse@mail.com',
-        'cn': new_device.device_id,
-        'displayName': new_device.id,
-        'uid': new_device.device_id,
-        'userPassword':password,
-        })
-    con.unbind()
-    logger.info('create ldap device %s',result)
-    return result
+    try:
+        uidNumber= str(new_device.id + 1000000)
+        con= getLDAPConn()
+        dn= str("cn=")+str(new_device.device_id)+str(",")+str(settings.AUTH_LDAP_USERS_OU_DN)
+        result=con.add(dn, 'inetOrgPerson', {
+            'givenName': 'device', 
+            'sn': 'device',
+            'mail': 'dontuse@mail.com',
+            'cn': new_device.device_id,
+            'displayName': new_device.id,
+            'uid': new_device.device_id,
+            'userPassword':password,
+            })
+        con.unbind()
+        logger.info('create ldap device %s',result)
+        return True
+    except:
+        logger.info('unable to create ldap device probably already exists %s')
+        return False
 
 
 
@@ -111,18 +115,24 @@ def removeFromLDAPGroup(user_name,group_name):
 
 
 
-def resetLDAPpassword(user_dn,new_password):
-     #returns True or False uses LDAP3  
-    con= getLDAPConn()
-    #group_dn= str("cn=")+str(group_name)+str(",")+str(settings.AUTH_LDAP_GROUPS_OU_DN)
-    result=con.modify(user_dn,
+def resetLDAPpassword(user,new_password):
+    #returns True or False uses LDAP3  
+    user_dn= str("cn=")+str(user.username)+str(",")+str(settings.AUTH_LDAP_USERS_OU_DN)
+    try:
+        con= getLDAPConn()
+        #group_dn= str("cn=")+str(group_name)+str(",")+str(settings.AUTH_LDAP_GROUPS_OU_DN)
+        result=con.modify(user_dn,
                       {'userPassword': (MODIFY_REPLACE, [new_password])
-    })
+                       })
     
    
-    logger.info('reset LDAP password for: %s', user_dn) 
-    logger.info('result of psw reset: %s', result)
-    con.unbind()
-    return result
+        logger.info('reset LDAP password for: %s', user_dn) 
+        logger.info('result of psw reset: %s', result)
+        con.unbind()
+        return result
+    
+    except: 
+        logger.info('unable to reset password: %s')
+        return False
 
 

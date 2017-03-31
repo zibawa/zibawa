@@ -11,7 +11,7 @@ from django.contrib.auth.decorators import login_required
 #from stack_configs.models import connectToLDAP,resetLDAPpassword, simpleLDAPQuery,addToLDAPGroup
 from stack_configs.stack_functions import constructStatusList
 from stack_configs.mqtt_functions import MqttData,TopicData,processMessages
-from stack_configs.ldap_functions import createLDAPDevice,getLDAPConn,addToLDAPGroup
+from stack_configs.ldap_functions import createLDAPDevice,getLDAPConn,addToLDAPGroup,resetLDAPpassword
 
 
 import string
@@ -52,8 +52,7 @@ def resetPsw(request, device_id):
         addToLDAPGroup(mydevice.device_id,'device')
         output=""
         topicFormat= str(mydevice.account.id)+"."+str(mydevice.device_id)+".*.*"
-    #except Exception:
-    #    output="We were unable to reset your password please contact your administrator"
+    
         context = {
             'content':output,
             'username': mydevice.device_id,
@@ -66,7 +65,22 @@ def resetPsw(request, device_id):
             'site_url':settings.SITE_URL
          
         }
-    else:
+    elif(resetLDAPpassword(request.user,password)):
+        output=""
+        topicFormat= str(mydevice.account.id)+"."+str(mydevice.device_id)+".*.*"
+        context = {
+            'content':output,
+            'username': mydevice.device_id,
+            'password': password,
+            'topicFormat': topicFormat,
+            'has_permission':request.user.is_authenticated,
+            'is_popup':False,
+            'title':'Reset device password',
+            'site_title':'zibawa',
+            'site_url':settings.SITE_URL
+         
+        }
+    else:    
         context = {
             'content':"We were unable to create your device password. Try a different device ID or contact your administrator",
             'username': mydevice.device_id,
@@ -105,7 +119,8 @@ def testMessage(request):
         if form.is_valid():
             #check that user is sending data on their own account
             logger.debug('form valid, processing message')
-            testMsg = MqttData(form.cleaned_data['topic'],form.cleaned_data['message'])
+            #encode utf-8 because this is the way text messages are received from rabbitmq 
+            testMsg = MqttData(form.cleaned_data['topic'],form.cleaned_data['message'].encode('utf-8'))
             mqttChecksList=processMessages(testMsg)
             context = {
                 

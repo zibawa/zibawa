@@ -44,7 +44,10 @@ class DeviceTests(TestCase):
         #will need to delete user from LDAP...
         logger.info('tests: logging in test user')
         response= self.client.login(username=testuser, password='supersecret')
-        logger.info('tests: getting devices resetPsw')
+        logger.info('tests: getting devices resetPsw (creates device on ldap)')
+        response=self.client.get('/devices/1/resetPsw/')
+        self.assertEqual(response.status_code, 200)
+        logger.info('tests: getting devices resetPsw 2nd time, modifes existing device on ldap')
         response=self.client.get('/devices/1/resetPsw/')
         self.assertEqual(response.status_code, 200)
         

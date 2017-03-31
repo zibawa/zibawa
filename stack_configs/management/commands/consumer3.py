@@ -304,6 +304,10 @@ class ZibawaConsumer(object):
         self.acknowledge_message(basic_deliver.delivery_tag)
         myMqttData=MqttData(basic_deliver.routing_key,body)
         LOGGER.info("topic %s", myMqttData.topic)
+        LOGGER.debug ("watch if set from mqtt %s", properties)
+        LOGGER.debug (properties.type)
+        LOGGER.debug (properties.content_encoding)
+        LOGGER.debug (properties.content_type)
         processMessages(myMqttData)
         
 

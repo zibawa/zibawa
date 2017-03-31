@@ -183,9 +183,9 @@ def zibawa_password_reset_confirm(request, uidb64=None, token=None,
             if form.is_valid():
                 form.save()
                 #ZIBAWA MODIFICATIONS START HERE
-                user_dn= "cn="+str(user.username)+","+settings.AUTH_LDAP_USERS_OU_DN
+               
                 new_password = form.cleaned_data['new_password1']
-                if(resetLDAPpassword(user_dn,new_password)):
+                if(resetLDAPpassword(user,new_password)):
                     
                     #change Grafana password 
                     grafana_user=GrafanaUser(request.user.id, request.user.username,new_password,request.user.email)
@@ -247,9 +247,9 @@ def zibawa_password_change(request,
             # except the current one.
            
             #ZIBAWA MODIFICATIONS START HERE
-            user_dn= "cn="+str(request.user.username)+","+settings.AUTH_LDAP_USERS_OU_DN
+            
             new_password = form.cleaned_data['new_password1']
-            if(resetLDAPpassword(user_dn,new_password)):
+            if(resetLDAPpassword(request.user,new_password)):
                 logger.debug('reset LDAP password')  
                 update_session_auth_hash(request, form.user)
                 

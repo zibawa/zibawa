@@ -138,7 +138,7 @@ def processMessages(mqttData):
     data={}
     #first check for simple numeric value (it would also parse succesfully as json!)
     
-    LOGGER.debug("message %s,", mqttData.message)
+   
     
     try:
         value=float (mqttData.message)
