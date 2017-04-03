@@ -66,7 +66,7 @@ class Command(BaseCommand):
     
     def handle(self, *args, **options):
                     
-            #i cant be bothered to eliminate this , we need 1 argument to run this once
+            
         logger.info('starting handle update simulation')
         output=getAllSims()
         logger.info('simulation completed')
