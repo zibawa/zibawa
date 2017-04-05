@@ -265,6 +265,14 @@ class GrafanaUser(object):
         DBusername="gu"+str(self.username)
         DBpassword=id_generator(size=20)
         
+        if (settings.INFLUXDB('use_ssl')):
+            Urlprotocol="https://"
+        else:
+            Urlprotocol="http://"
+            
+        
+        Urlstring= Urlprotocol+settings.INFLUXDB('host')+":"+str(settings.INFLUXDB('port'))
+        
         #createInfluxReadOnlyUser for database
         logger.debug('trying to create influx user for datasource %s',DBusername)
         client=getInfluxConnection()
@@ -278,7 +286,7 @@ class GrafanaUser(object):
         data={}
         data['name']=DBname
         data['type']="influxdb"
-        data['url']="http://localhost:8086"
+        data['url']=Urlstring
         data['access']="proxy"
         data['basicAuth']=False
         data['password']=DBpassword

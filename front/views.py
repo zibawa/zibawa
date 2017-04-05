@@ -95,7 +95,7 @@ def create_account(request):
         'has_permission':request.user.is_authenticated,
         'is_popup':False,
         'form':form,
-        'title':'Send test message',
+        'title':'New User Creation',
         'site_title':'zibawa',
         'site_url':settings.SITE_URL
         }
@@ -185,7 +185,7 @@ def zibawa_password_reset_confirm(request, uidb64=None, token=None,
                 #ZIBAWA MODIFICATIONS START HERE
                
                 new_password = form.cleaned_data['new_password1']
-                if(resetLDAPpassword(user,new_password)):
+                if(resetLDAPpassword(user.username,new_password)):
                     
                     #change Grafana password 
                     grafana_user=GrafanaUser(request.user.id, request.user.username,new_password,request.user.email)
@@ -249,7 +249,7 @@ def zibawa_password_change(request,
             #ZIBAWA MODIFICATIONS START HERE
             
             new_password = form.cleaned_data['new_password1']
-            if(resetLDAPpassword(request.user,new_password)):
+            if(resetLDAPpassword(request.user.username,new_password)):
                 logger.debug('reset LDAP password')  
                 update_session_auth_hash(request, form.user)
                 

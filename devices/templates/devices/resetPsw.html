@@ -1,0 +1,29 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+
+<table>
+<tr><td>Username</td><td>{{username}}</td></tr>
+<tr><td>Password</td><td>{{password}}</td></tr>
+<tr><td>Topic Format</td><td>{{topicFormat}}</td></tr>
+<tr><td>MQTT Hostname</td><td>{{mqttHost}}</td></tr>
+<tr><td>MQTT Port</td><td>{{mqttPort}}</td></tr>
+<tr><td>MQTT CA certificate</td><td><a href="/devices/download_CA_cert/">CA download</a>
+<tr><td>MQTT test</td><td>
+
+{% if mqttConnResult == 0 %}
+   0 - Connected
+{% elif mqttConnResult == 1 %}
+1 - Conn refused bad protocol
+{% elif mqttConnResult == 2 %}
+2 - Conn refused invalid client identifier
+{% elif mqttConnResult == 3 %}
+3- Conn refused server unavailable
+{%elif mqttConnResult == 4 %}
+4 - Bad credentials
+{%else%}
+Conn failed - Unknown Reason
+{% endif %}
+</td></tr>
+
+</table>
+{% endblock %}

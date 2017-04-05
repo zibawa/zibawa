@@ -25,10 +25,13 @@ def createLDAPDevice(new_device,password):
             'userPassword':password,
             })
         con.unbind()
-        logger.info('create ldap device %s',result)
-        return True
+        if result:
+            logger.info('create ldap device %s',result)
+        else:
+            logger.info('unable to create device (possibly device already exists)')
+        return result
     except:
-        logger.info('unable to create ldap device probably already exists %s')
+        logger.info('unable to create ldap device ')
         return False
 
 
@@ -115,9 +118,9 @@ def removeFromLDAPGroup(user_name,group_name):
 
 
 
-def resetLDAPpassword(user,new_password):
+def resetLDAPpassword(username,new_password):
     #returns True or False uses LDAP3  
-    user_dn= str("cn=")+str(user.username)+str(",")+str(settings.AUTH_LDAP_USERS_OU_DN)
+    user_dn= str("cn=")+str(username)+str(",")+str(settings.AUTH_LDAP_USERS_OU_DN)
     try:
         con= getLDAPConn()
         #group_dn= str("cn=")+str(group_name)+str(",")+str(settings.AUTH_LDAP_GROUPS_OU_DN)

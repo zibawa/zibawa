@@ -1,6 +1,6 @@
 from builtins import str
 from builtins import range
-from django.http import HttpResponse
+from django.http import HttpResponse,HttpResponseNotFound
 from django.template import loader
 from django.shortcuts import get_list_or_404
 from django.shortcuts import render
@@ -12,7 +12,7 @@ from django.contrib.auth.decorators import login_required
 from stack_configs.stack_functions import constructStatusList
 from stack_configs.mqtt_functions import MqttData,TopicData,processMessages
 from stack_configs.ldap_functions import createLDAPDevice,getLDAPConn,addToLDAPGroup,resetLDAPpassword
-
+from stack_configs.mqtt_paho_functions import connectToMqtt
 
 import string
 import random
@@ -44,7 +44,7 @@ def index(request):
 
 @login_required(login_url='/admin/login/?next=/admin/')
 def resetPsw(request, device_id):
-    template = loader.get_template('resetPsw.html')
+    template = loader.get_template('devices/resetPsw.html')
     my_objects = get_list_or_404(Device,id=device_id, account=request.user)
     mydevice= my_objects[0]
     password= id_generator()
@@ -52,11 +52,18 @@ def resetPsw(request, device_id):
         addToLDAPGroup(mydevice.device_id,'device')
         output=""
         topicFormat= str(mydevice.account.id)+"."+str(mydevice.device_id)+".*.*"
-    
+        topic=str(request.user.id)+"."+str(mydevice.device_id)+".test.1"
+        logger.debug("trying to send mqtt for topic %s",topic)
+        payload={"test"}
+        mqttConnResult=connectToMqtt(mydevice.device_id,password,topic,payload)
         context = {
             'content':output,
             'username': mydevice.device_id,
             'password': password,
+            'mqttConnResult': mqttConnResult,
+            'mqttHost':settings.MQTT['host'],
+            'mqttPort':settings.MQTT['port'],
+            'caFilePath':settings.MQTT['path_to_ca_cert'],
             'topicFormat': topicFormat,
             'has_permission':request.user.is_authenticated,
             'is_popup':False,
@@ -65,13 +72,23 @@ def resetPsw(request, device_id):
             'site_url':settings.SITE_URL
          
         }
-    elif(resetLDAPpassword(request.user,password)):
+    elif(resetLDAPpassword(mydevice.device_id,password)):
         output=""
         topicFormat= str(mydevice.account.id)+"."+str(mydevice.device_id)+".*.*"
+        topic=str(mydevice.account.id)+"."+str(mydevice.device_id)+".test.1"
+        logger.debug("trying to send mqtt for topic %s",topic)
+        payload={"test"}
+        mqttConnResult=connectToMqtt(mydevice.device_id,password,topic,payload)
+        
+        
         context = {
             'content':output,
             'username': mydevice.device_id,
             'password': password,
+            'mqttConnResult': mqttConnResult,
+            'mqttHost':settings.MQTT['host'],
+            'mqttPort':settings.MQTT['port'],
+            'caFilePath':settings.MQTT['path_to_ca_cert'],
             'topicFormat': topicFormat,
             'has_permission':request.user.is_authenticated,
             'is_popup':False,
@@ -85,6 +102,10 @@ def resetPsw(request, device_id):
             'content':"We were unable to create your device password. Try a different device ID or contact your administrator",
             'username': mydevice.device_id,
             'password': "",
+            'mqttConnResult': None,
+            'mqttHost':settings.MQTT['host'],
+            'mqttPort':settings.MQTT['port'],
+            'caFilePath':settings.MQTT['path_to_ca_cert'],
             'topicFormat': "",
             'has_permission':request.user.is_authenticated,
             'is_popup':False,
@@ -157,4 +178,18 @@ def testMessage(request):
                         }
     return render(request, 'devices/testMessageForm.html', context)
 
+
+def download_CA_cert(request):
+    try:
+        file = open(settings.MQTT['path_to_ca_cert'], 'r')
+        file.seek(0)
+        cert = file.read()
+        file.close()
+        response = HttpResponse(cert, content_type='application/x-pem-file')
+        response['Content-Disposition'] = 'attachment; filename="zibawa_mqtt_ca_cert.pem"'
     
+    except:
+        response= HttpResponseNotFound('404 - Not found')
+    
+    
+    return response    
