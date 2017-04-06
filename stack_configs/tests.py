@@ -5,7 +5,7 @@ from stack_configs.ldap_functions import createLDAPuser,addToLDAPGroup,removeFro
 from stack_configs.stack_functions import createInfluxDB,testConnectToRabbitMQ
 from .grafana_functions import getFromGrafanaApi,GrafanaUser
 import logging
-from stack_configs.models import getInfluxConnection
+from stack_configs.influx_functions import getInfluxConnection
 logger = logging.getLogger(__name__)
 # Create your tests here.
 #these test are to check connectivity of the different apis
@@ -58,7 +58,9 @@ class StackTests(TestCase):
         logger.info('tests: trying to bind to rabbit')
         test=testConnectToRabbitMQ()
         self.assertEqual(test.status,True)   
-
+    
+    
+    
 
 
 class GrafanaTests(TestCase):

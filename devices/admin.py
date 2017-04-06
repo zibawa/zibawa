@@ -1,5 +1,5 @@
 from django.contrib import admin
-
+from stack_configs.influx_functions import getLastTimeInflux
 # Register your models here
 
 from .models import Section,Device,Channel,User,Channel_tag
@@ -7,8 +7,37 @@ from .models import Section,Device,Channel,User,Channel_tag
 
 class channelInline(admin.StackedInline):
     model = Channel
-    extra = 1
-
+    #fields=['channel_id','last_published']
+    readonly_fields=('last_published',)
+    extra = 0
+    
+    fieldsets = (
+        (None, {
+            'fields': ('channel_id','channel_desc','channel_tags','last_published')
+        }),
+        ('Time related tags', {
+            'description':'Use these to add extra information to analyse your data by day of week or hour of day',
+            'classes': ('collapse',),
+            'fields': ('time_tag_year','time_tag_month','time_tag_day','time_tag_hour','elapsed_since_same_ch','elapsed_since_diff_ch',),
+        }),
+        ('Alarms',{
+            'description':'Add reference limits to your graphs and set alarms',
+            'classes':('collapse',),
+            'fields': ('upper_warning','lower_warning','alarm_logs','alarm_email','alarm_raised',),
+        }),
+    )
+    '''
+    fieldsets = (
+        (None, {
+            'fields': ('channel_id', 'channel_desc', 'channel_tags','last_published')
+        }),
+        ('Channel_tags', {
+            'classes': ('collapse',),
+            'fields': ('channel_desc','channel_tags'),
+        }),
+    )
+    '''
+    
   
 class FilterUserAdmin(admin.ModelAdmin): 
     #this class is used to filter objects by user(account)
@@ -40,6 +69,27 @@ class deviceAdmin(FilterUserAdmin):
     list_display = ('device_id', 'device_desc','resetPasswordLink')
     search_fields = ['device_id','device_desc','model_name']
     inlines = [channelInline]
+    
+    fieldsets = (
+        (None, {
+            'fields': ('device_id','device_desc','group','section','subgroup' ,)
+        }),
+        ('Geo-position',{
+            'description':'',
+            'classes':('collapse',),
+            'fields':('latitude','longitude',),
+            }),
+        
+        ('Installation details',{
+            'description':'',
+            'classes':('collapse',),
+            'fields':('model_name','install_date',),
+        }),
+        )
+    
+    
+    
+    
     
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         #this function restricts choice of foreign key to those belonging to user/account

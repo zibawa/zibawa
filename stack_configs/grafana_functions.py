@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from django.conf import settings
-from .models import getInfluxConnection
+from .influx_functions import getInfluxConnection
 
 import logging
 import email

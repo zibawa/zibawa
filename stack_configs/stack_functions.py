@@ -10,7 +10,7 @@ from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 
 from .models import sendToRabbitMQ
-from .models import sendToRabbitMQ, getInfluxConnection
+from .influx_functions import getInfluxConnection
 from .grafana_functions import GrafanaUser,testGrafanaUp
 import random
 import string

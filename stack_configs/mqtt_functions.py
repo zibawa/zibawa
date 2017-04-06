@@ -6,7 +6,7 @@ from past.utils import old_div
 from builtins import object
 from devices.models import Device,Channel,Channel_tag
 from hooks.models import person,place,product,hook
-from .models import sendToDB,sendToElastic,searchElastic,initializeElasticIndex,getRabbitConnection,getQueryInflux
+from .models import sendToDB,sendToElastic,searchElastic,initializeElasticIndex
 from django.utils.dateparse import parse_datetime
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.html import strip_tags
@@ -18,6 +18,7 @@ import datetime
 import logging
 from . import kura_pb2
 from django.utils import timezone
+from stack_configs.influx_functions import getQueryInflux,getLastTimeInflux
 #from dns.rdatatype import NULL
 LOGGER = logging.getLogger(__name__)
 
@@ -360,20 +361,19 @@ def addTimeTags(my_timeobject,c):
     return tags
     
 
+
+
+    
 def getTimeElapsedInflux(index,device_id,channel_id,data):
     #gets time elapsed since ANY reading on SAME channel and device
     #select device_name because we always have a tag with that name
     #query="SELECT * from \"mqttData\" WHERE \"device_id\" = \'atest\' AND \"channel_id\" = \'1\';"
     tagsToAdd={}
-    query="SELECT * from \"mqttData\" WHERE \"device_id\" = \'"+str(device_id)+"\' AND \"channel_id\" = \'"+str(channel_id)+"\' ORDER BY time DESC LIMIT 1"
-    results=getQueryInflux(index,query)
-    for result in results:
-        influxTime = result['time']
-        LOGGER.debug('influx result %s', influxTime)
-        l= parse_datetime(data['timestamp'])    
-        t= parse_datetime(influxTime)
-        tagsToAdd['elapsed-sec']= (l-t).total_seconds()
-        LOGGER.debug('time elapsed %s', tagsToAdd['elapsed-sec'])
+    #query="SELECT * from \"mqttData\" WHERE \"device_id\" = \'"+str(device_id)+"\' AND \"channel_id\" = \'"+str(channel_id)+"\' ORDER BY time DESC LIMIT 1"
+    t=getLastTimeInflux(index,device_id,channel_id)
+    l= parse_datetime(data['timestamp'])    
+    tagsToAdd['elapsed-sec']= (l-t).total_seconds()
+    LOGGER.debug('time elapsed %s', tagsToAdd['elapsed-sec'])
     return tagsToAdd
 
 def getTimeElapsedTagOnDifferentInflux(index,device_id,channel_id,data):

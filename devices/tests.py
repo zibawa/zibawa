@@ -3,7 +3,9 @@ from .models import Device,Section,Channel,Channel_tag
 from django.contrib.auth.models import User,Group,Permission
 from django.conf import settings
 from stack_configs.ldap_functions import createLDAPuser,addToLDAPGroup,removeFromLDAPGroup,getLDAPConn
+from stack_configs.influx_functions import getLastTimeInflux
 import logging
+import datetime
 logger = logging.getLogger(__name__)
 # Create your tests here.
 
@@ -115,13 +117,18 @@ class DeviceTests(TestCase):
             
             self.assertEqual(response.status_code, 200)
     
-    
-        
+    def Test_get_last_influx(self):
+        #requires to be run after Test test message
+        logger.info('tests: get last influx')
+        result=getLastTimeInflux('dab'+str(testuser),test_device_id,'1')
+        logger.info('tests: get last influx %s',result)
+        self.assertEqual(isinstance(result, datetime.datetime),True)
     
     def test_All(self):
         self.Test_reset_psw()
         self.Test_test_message()
-        self.Test_admin_pages()
+        self.Test_get_last_influx()
+        #self.Test_admin_pages()
     
     def tearDown(self):
         #remove device from ldap

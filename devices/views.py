@@ -12,6 +12,7 @@ from django.contrib.auth.decorators import login_required
 from stack_configs.stack_functions import constructStatusList
 from stack_configs.mqtt_functions import MqttData,TopicData,processMessages
 from stack_configs.ldap_functions import createLDAPDevice,getLDAPConn,addToLDAPGroup,resetLDAPpassword
+from stack_configs.influx_functions import getLastInflux
 from stack_configs.mqtt_paho_functions import connectToMqtt
 
 import string
@@ -143,6 +144,9 @@ def testMessage(request):
             #encode utf-8 because this is the way text messages are received from rabbitmq 
             testMsg = MqttData(form.cleaned_data['topic'],form.cleaned_data['message'].encode('utf-8'))
             mqttChecksList=processMessages(testMsg)
+            myTopic=TopicData(form.cleaned_data['topic'])
+            
+            lastInflux= getLastInflux(request.user,myTopic.device,myTopic.channel)
             context = {
                 
                 'has_permission':request.user.is_authenticated,

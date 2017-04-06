@@ -3,8 +3,10 @@ from __future__ import unicode_literals
 from django.db import models
 
 from django.utils import timezone
+from django.utils.timezone import localtime
 from django.contrib.auth.models import User
 from django.core.validators import RegexValidator
+from stack_configs.influx_functions import getLastTimeInflux
 
 
 # Create your models here.
@@ -33,7 +35,7 @@ class Device(models.Model):
 
 
     def __str__(self):
-        return self.device_desc
+        return self.device_id
     
    
    
@@ -65,9 +67,12 @@ class Channel(models.Model):
     alarm_raised=models.DateTimeField(default=timezone.now)
     
     def __str__(self):
-        return self.channel_desc
+        return self.channel_id
      
-    
+    def last_published(self):
+        mytime= getLastTimeInflux("dab"+str(self.device.account.username),self.device.device_id,self.channel_id)
+        
+        return mytime
 
 
     
