@@ -83,7 +83,7 @@ def getAllSims():
             #simulationAccount=sim.account
             sim_time=sim_time+datetime.timedelta(seconds=sim.period)
             calculateAll(sim, sim_time)
-            sim.end_time= sim_time                  
+            sim.start_time= sim_time                  
             sim.save()
     
     return 

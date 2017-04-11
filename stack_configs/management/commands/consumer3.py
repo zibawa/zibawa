@@ -80,6 +80,7 @@ class ZibawaConsumer(object):
                                port=int(config['port']),
                                virtual_host='/',
                                heartbeat_interval=5,
+                               socket_timeout=2,
                                credentials=credentials,
                                ssl=config['use_ssl'],
                                ssl_options=dict(
