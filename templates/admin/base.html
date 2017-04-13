@@ -41,7 +41,7 @@
                     {% endif %}
                  <a href="https://docs.zibawa.com">{% trans 'Documentation' %}</a> /
                  <a href="{% url 'devices:test_message' %}">{% trans 'Test Message' %}</a> /    
-                 <a href="http://zibawa.com:3000" target="_blank">{% trans 'Dashboards' %}</a> /
+                 <a href="https://dashboard.zibawa.com" target="_blank">{% trans 'Dashboards' %}</a> /
                 {% endif %}
                 {% if user.has_usable_password %}
                 <a href="{% url 'front:password_change' %}">{% trans 'Change password' %}</a> /
