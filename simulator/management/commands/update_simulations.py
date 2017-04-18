@@ -30,6 +30,7 @@ from devices.models import Device,Channel,Section
 from stack_configs.models import sendToRabbitMQ
 from django.contrib.auth.models import User
 import datetime
+import time
 from random import randint
 import random
 import json
@@ -68,8 +69,10 @@ class Command(BaseCommand):
                     
             
         logger.info('starting handle update simulation')
-        output=getAllSims()
-        logger.info('simulation completed')
+        while True:
+            output=getAllSims()
+            time.sleep(100)
+            logger.info('simulation completed, sleeping')
            
 def getAllSims():
 #get all simulation objects and calculate from last start time up till now 
