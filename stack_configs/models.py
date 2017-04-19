@@ -35,7 +35,8 @@ def getRabbitConnection():
                                port=int(config['port']),
                                virtual_host='/',
                                heartbeat_interval=5,
-                               credentials=credentials,
+                               socket_timeout=2,
+			       credentials=credentials,
                                ssl=config['use_ssl'],
                                ssl_options=dict(
                                    ca_certs=config['path_to_ca_cert'],
