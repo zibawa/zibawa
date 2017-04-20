@@ -31,7 +31,8 @@ class OpenLdapBackend(object):
         logger.debug('connecting to ldap as user %s ',dn)
         try:
             conn=getLDAPConnWithUser(dn,password)
-        except:
+        except Exception as e:
+            logger.warning('ldapconnection error %s',e)
             return None
         if (conn.bound):
              
