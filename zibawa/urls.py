@@ -22,6 +22,7 @@ urlpatterns = [
     url(r'^devices/', include('devices.urls',namespace='devices')),
     url(r'^front/', include('front.urls',namespace='front')),
     url(r'^admin/', admin.site.urls),
+    url(r'^IoT_pki/', include('IoT_pki.urls',namespace='IoT_pki')),
     url(r'^', include('front.urls')),
     
     
