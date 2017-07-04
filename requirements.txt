@@ -1,8 +1,13 @@
 appdirs==1.4.3
+asn1crypto==0.22.0
+cffi==1.10.0
+cryptography==1.9
 Django==1.10.6
+djangorestframework==3.6.3
 elasticsearch==5.2.0
-freeopcua==0.90.3
+-e git+git@github.com:mattfield11/python-opcua.git@479054f84624653f60924d07d80ce6ecf8ca24d8#egg=freeopcua
 future==0.16.0
+idna==2.5
 influxdb==4.0.0
 ldap3==2.2.2
 lxml==3.8.0
@@ -13,6 +18,7 @@ pkg-resources==0.0.0
 protobuf==3.2.0
 psycopg2==2.7.1
 pyasn1==0.2.3
+pycparser==2.17
 pyparsing==2.2.0
 python-dateutil==2.6.0
 pytz==2016.10
