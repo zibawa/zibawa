@@ -1,6 +1,8 @@
 appdirs==1.4.3
 asn1crypto==0.22.0
 cffi==1.10.0
+coreapi==2.3.1
+coreschema==0.0.4
 cryptography==1.9
 Django==1.10.6
 djangorestframework==3.6.3
@@ -9,8 +11,11 @@ elasticsearch==5.2.0
 future==0.16.0
 idna==2.5
 influxdb==4.0.0
+itypes==1.1.0
+Jinja2==2.9.6
 ldap3==2.2.2
 lxml==3.8.0
+MarkupSafe==1.0
 packaging==16.8
 paho-mqtt==1.2.2
 pika==0.10.0
@@ -19,10 +24,12 @@ protobuf==3.2.0
 psycopg2==2.7.1
 pyasn1==0.2.3
 pycparser==2.17
+pyOpenSSL==17.1.0
 pyparsing==2.2.0
 python-dateutil==2.6.0
 pytz==2016.10
 requests==2.13.0
 six==1.10.0
+uritemplate==3.0.0
 urllib3==1.20
 uWSGI==2.0.14

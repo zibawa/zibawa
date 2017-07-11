@@ -37,6 +37,9 @@ class Command(BaseCommand):
         global device_common_name 
         device_common_name= id_generator(5)#generate random ID each time we use
         
+        #uncomment below to just test renew client cert
+        #renewClientCert(pathToClientCert)
+        #sys.exit(0)
           
         #for the purposes of the simulation we will remove the old cert and token file each time!
         try:
@@ -58,29 +61,12 @@ class Command(BaseCommand):
     
 def processRequest():                    
         #tries to renew certificate if available, if not makes request to obtain new certificate
+        #returns True if valid certificate availble
         
-     
         
-        logger.info('checking for presence of certificate file')
-        
-        if (os.path.isfile(pathToClientCert)):
-            data={}
-            result=callPKI2 ('/IoT_pki/renew_cert/',data,'GET')
-            if (result.status_code==201):
-                with open(pathToClientCert,"wb") as f:
-                    f.write(result.content)
-                    test_certificate()
-                    logger.info('certificate renewed..exiting')
-                    return True
-        
-            elif (result.status_code==200):
-                 logger.info('certificate valid but not due for renewal..exiting')
-                 return True
-            else:
-                logger.info('certificate not valid')        
-        else:
-            logger.info('no client certificate found')
-        
+        if (renewClientCert(pathToClientCert)):
+            return True
+       
         try:
             token=readTokenFromFile()
             tokenIsValid=True
@@ -92,7 +78,7 @@ def processRequest():
         #
             result=collectCertWithToken(token)
             if(result.status_code==201):
-                os.remove(pathToToken)
+                os.remove(pathToToken)#remove used token
                 logger.info("collected cert with token - test renewal before exiting")
                 #we should have valid cert here, but return False to force test renewal before exiting
                 return False
@@ -109,7 +95,10 @@ def processRequest():
             
         logger.info('making new cert request')
         postdata={'common_name':device_common_name}
-        result=callPKI ('/IoT_pki/new_request/',postdata,'POST')
+        headers = {'Accept': 'application/json',
+                   'Content-Type' : 'application/json'}
+    
+        result=callPKI ('/IoT_pki/new_request/','POST',headers,postdata,)
         try:
             data=result.json()
         except:
@@ -121,6 +110,30 @@ def processRequest():
         else:
             logger.error('unable to request new certificate')    
         return False
+
+
+def renewClientCert(pathToClientCert):
+    logger.info('checking for presence of certificate file')
+        
+    if (os.path.isfile(pathToClientCert)):
+        
+        result=callPKI ('/IoT_pki/renew_cert/','GET')
+        if (result.status_code==201):
+            with open(pathToClientCert,"wb") as f:
+                f.write(result.content)
+                logger.info('certificate renewed..exiting')
+                return True
+        
+        elif (result.status_code==200):
+            logger.info('certificate valid but not due for renewal..exiting')
+            return True
+        else:
+            logger.info(result.content)        
+    else:
+        logger.info('no client certificate found')
+    return False
+
+    
                 
 def writeTokenToFile(token):
     with open(pathToToken,"w") as f:
@@ -138,8 +151,8 @@ def readTokenFromFile():
 def collectCertWithToken(token):
         #returns result to allow us to decide what to do as function of status code
         apiurl="/IoT_pki/cert_collect/"+str(token)+"/"
-        data={}
-        result=callPKI2(apiurl,data,'GET')
+        
+        result=callPKI(apiurl,'GET')
         if (result.status_code==201):
             with open(pathToClientCert,'wb') as f:
       
@@ -151,29 +164,20 @@ def collectCertWithToken(token):
         return result
         
 
-def callPKI2(apiurl,data,callType):
-
-        
-    if settings.PKI['use_ssl']:
-        protocol='https://'
-        if settings.PKI['verify_certs']:
+def callPKI(apiurl,callType,headers={},data={}):
+    #function to make Curl call using requests library
+       
+    if settings.PKI['verify_certs']:
             #TO DO   need to distinguish between ca cert for ssl and pki!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            verifycerts= settings.PKI['path_to_ca_cert'] 
-        else:
-            verifycerts=False
-        
-    else:   
-        protocol='http://'
+        verifycerts= settings.PKI['path_to_ca_cert'] 
+    else:
         verifycerts=False
-            
-    url=protocol+settings.PKI['host']+":"+str(settings.PKI['port'])+apiurl
-    
+                
+    url='https://'+settings.PKI['host']+":"+str(settings.PKI['port'])+apiurl
     logger.debug('making %s request to pki %s',callType,url)
     username= settings.PKI['user']
     password= settings.PKI['password']
-    
-    headers = {'User-agent': 'Mozilla/5.0'}
-    
+        
     s = Session()
     req = Request(callType,url,data=json.dumps(data),headers=headers,auth=(username,password))
     prepped = s.prepare_request(req)
@@ -186,52 +190,11 @@ def callPKI2(apiurl,data,callType):
         
     result = s.send(prepped,verify=verifycerts,cert=cert)
     logger.info("status code received %s" , result.status_code)
-    
-        
+            
     return result  
 
-def callPKI(apiurl,data,callType):
-
-        
-    if settings.PKI['use_ssl']:
-        protocol='https://'
-        if settings.PKI['verify_certs']:
-            #TO DO   need to distinguish between ca cert for ssl and pki!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            verifycerts= settings.PKI['path_to_ca_cert'] 
-        else:
-            verifycerts=False
-        
-    else:   
-        protocol='http://'
-        verifycerts=False
-            
-    url=protocol+settings.PKI['host']+":"+str(settings.PKI['port'])+apiurl
-    
-    logger.debug('making %s request to pki %s',callType,url)
-    username= settings.PKI['user']
-    password= settings.PKI['password']
-    
-    headers = {'Accept': 'application/json',
-                   'Content-Type' : 'application/json','User-agent': 'Mozilla/5.0'}
-    
-    s = Session()
-    req = Request(callType,  url, data=json.dumps(data), headers=headers, auth=(username,password))
-
-    prepped = s.prepare_request(req)
-    result = s.send(prepped,verify=verifycerts,)
-
-    logger.info("status code received %s" , result.status_code)
-    
-    try:
-        logger.debug('pki response %s',result.json())
-    except:
-        logger.debug('pki no json received')
-    return result
 
 
 
-def test_certificate():
-    #check access to test page gives good result
-    #the test page could also be used as signal to revoke all previous certificates for user (to do)
-    #copy temporary file to definitive certificate file
-    return True
+
+

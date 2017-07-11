@@ -176,6 +176,10 @@ class GrafanaUser(object):
         
     
     def get_orgID(self):
+        #checks if user has an organization created for it (not ID==1)
+        #if so, updates orgID and role properties.
+        #if not returns FALSE.
+        
         apiurl="/api/users/"+str(self.id)+"/orgs"
         data={}
         output=getFromGrafanaApi(apiurl,data,'GET')
@@ -265,13 +269,13 @@ class GrafanaUser(object):
         DBusername="gu"+str(self.username)
         DBpassword=id_generator(size=20)
         
-        if (settings.INFLUXDB('use_ssl')):
+        if (settings.INFLUXDB['use_ssl']):
             Urlprotocol="https://"
         else:
             Urlprotocol="http://"
             
         
-        Urlstring= Urlprotocol+settings.INFLUXDB('host')+":"+str(settings.INFLUXDB('port'))
+        Urlstring= Urlprotocol+settings.INFLUXDB['host']+":"+str(settings.INFLUXDB['port'])
         
         #createInfluxReadOnlyUser for database
         logger.debug('trying to create influx user for datasource %s',DBusername)

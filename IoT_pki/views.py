@@ -1,8 +1,11 @@
 from django.shortcuts import render
+from django.forms import modelformset_factory
 from django.http import HttpResponse,HttpResponseNotFound
-from .x509_functions import generateNewX509,makeCA,id_generator,makeCert,prepareCert
+from django.views.decorators.csrf import csrf_exempt
+from .x509_functions import generateNewX509,id_generator,makeCert,prepareCert,build_crl
 from django.contrib.auth.models import User, Group
 from .models import Cert_request,Certificate
+from .forms import Ca_Form
 from rest_framework import viewsets
 from .serializers import Cert_requestSerializer
 from rest_framework import status
@@ -15,10 +18,11 @@ from rest_framework import permissions
 from rest_framework import serializers
 from django.utils import timezone
 from django.conf import settings
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404
 import datetime
 from .permissions import IsOwnerOrReadOnly
 import logging
+import OpenSSL
 
 logger = logging.getLogger(__name__)
 # Create your views here.
@@ -75,6 +79,7 @@ def cert_collect(request,token):
   
         response = HttpResponse(dataStream, content_type='application/x-pem-file',status=201)
         response['Content-Disposition'] = 'attachment; filename="client_cert.pem"'
+        #update cert_request to avoid duplicates being created
         cert_request.issued=True
         cert_request.save()
     
@@ -82,9 +87,76 @@ def cert_collect(request,token):
     
     return response 
 
+def cert_collect_pkcs12(request,token):
+    #when supplied with token, looks up request, checks approval status and returns appropriate HttpResponse
+    #in this case token is taken from browser
+    
+    
+    certs = Cert_request.objects.filter(token=token)
+       
+    try:
+        cert_request=certs[0]
+    except:
+        return HttpResponse(status=404,content="Not found")    
+    logger.info("retrieved cert %s",cert_request.common_name)
+    
+    if (cert_request.issued==True):
+        logger.info("Certificate already issued %s",cert_request.common_name)
+        response= HttpResponse(status=410,content="Cert already issued")
+    elif (cert_request.approved==False):
+        logger.debug("Certificate pending approval %s",cert_request.common_name)
+        response=HttpResponse(status=403, content="Pending approval")         
+    else:    
+        logger.info("Generating cert %s",cert_request.common_name)
+        datastream=generateNewX509(cert_request)
+        
+        c=OpenSSL.crypto
+        cert=c.load_certificate(c.FILETYPE_PEM, datastream)
+        key=c.load_privatekey(c.FILETYPE_PEM, datastream)
+        p12 = OpenSSL.crypto.PKCS12()
+        p12.set_privatekey(key)
+        p12.set_certificate(cert)
+        #open( "container.pfx", 'w' ).write( p12.export() )
+        p12dataStream=p12.export()
+  
+        response = HttpResponse(p12dataStream, content_type='application/x-pkcs12',status=201)
+        response['Content-Disposition'] = 'attachment; filename="client_cert.p12"'
+        #update cert_request to avoid duplicates being created
+        #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!uncomment below!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        #cert_request.issued=True
+        cert_request.save()
+    
+
+    
+    return response 
+
+
+
+
+
 
 def new_ca(request):
-    
+
+
+    if request.method == 'POST':
+        form = Ca_Form(request.POST)
+        if form.is_valid():
+            ca_cert_request=form.save()
+            ca_cert_request.is_ca=True
+            new_ca_data=prepareCert(ca_cert_request)
+            dataStream=makeCert(new_ca_data)
+            response = HttpResponse(dataStream, content_type='application/x-pem-file',status=201)
+            response['Content-Disposition'] = 'attachment; filename="client_cert.pem"'
+            new_ca_data.issued=True
+            new_ca_data.save()
+        
+        return response
+            
+            
+            #copyID to "current CA file"
+    else:
+        form = Ca_Form()
+    return render(request, 'IoT_pki/new_ca.html', {'form': form})
     return
 
 
@@ -104,6 +176,29 @@ def download_ca(request):
     
     
     return response 
+
+
+def test_client_cert(request):
+    try:
+        client_verify=request.META['HTTP_X_SSL_AUTHENTICATED']
+        logger.info ("client verified %s",client_verify)
+    except:
+        return HttpResponse (status=501,content="Didn't receive any ssl authenticated header from web server.  You must use https.  If you did, and the error persists, possible bad configuration of webserver")
+    
+    
+    if (request.META['HTTP_X_SSL_AUTHENTICATED'])=="SUCCESS":
+        user_dn=request.META['HTTP_X_SSL_USER_DN']
+        logger.info("user_dn:%s",user_dn)
+        hex_serial_number=request.META['HTTP_X_SSL_CLIENT_SERIAL']  
+        logger.info("serial no:%s ",hex_serial_number)   
+        content=request.META['HTTP_X_SSL_AUTHENTICATED'] + ": Zibawa PKI succesfully verified your certificate.  Serial number:"+hex_serial_number
+        return HttpResponse (status=200,content=content)
+        #return HttpResponse (status=200 ,content="200 - Certificate Valid, not yet due for renewal")
+    
+    else:
+        #will return reason for failure provided by NGINX    
+        return HttpResponse (status=403 ,content="Zibawa PKI has been unable to verify your client certificate:"+request.META['HTTP_X_SSL_AUTHENTICATED'])
+    
 
 
 def renew_cert(request):
@@ -126,7 +221,7 @@ def renew_cert(request):
     
     else:
         #will return reason for failure provided by NGINX    
-        return HttpResponse (status=400 ,content="400 - request.META['HTTP_X_SSL_AUTHENTICATED']")
+        return HttpResponse (status=403 ,content="not authorized client cert:"+request.META['HTTP_X_SSL_AUTHENTICATED'])
     
 def check_renewal_status(hex_serial_number):
     
@@ -161,6 +256,25 @@ def check_renewal_status(hex_serial_number):
         renewed_cert.save()
         
         return response
+
+
+def export_crl(request):
+    
+    #try:
+    if 1==1:
+        datastream= build_crl()
+        response = HttpResponse(datastream, content_type='application/x-pem-file',status=201)
+        response['Content-Disposition'] = 'attachment; filename="crl.pem"'
+    '''
+    except:
+        response= HttpResponse(status=404, content= 'Not found')
+    '''
+    
+    return response 
+    
+    
+    
+    
     
 
     

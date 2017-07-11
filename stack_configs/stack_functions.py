@@ -53,7 +53,7 @@ def constructStatusList(request):
        
 def testConnectToRabbitMQ():
         
-    result=sendToRabbitMQ('health.admin.test','testMessage')
+    
     try: 
         result=sendToRabbitMQ('health.admin.test','testMessage')
         output= testObj("rabbitMQ",True,"")

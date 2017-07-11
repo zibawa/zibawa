@@ -306,7 +306,10 @@ def createAndConfigureGrafana(zibawa_user,password):
             result=testObj("GrafanaAccount",True, "Your account has been created, but not configured")
             logger.info("trying to find non grafana admin org")
             if not (grafana_user.get_orgID()):
+                logger.info("no org found for user, adding to own org")
                 grafana_user.add_to_own_org()
+                #run get org id again, to ensure created correctly.
+                grafana_user.get_orgID()
             logger.info("running fix permissions for Grafana")
             grafana_user.fix_permissions()
             logger.info("running add datasource for Grafana")
