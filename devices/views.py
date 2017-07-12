@@ -11,7 +11,7 @@ from django.contrib.auth.decorators import login_required
 #from stack_configs.models import connectToLDAP,resetLDAPpassword, simpleLDAPQuery,addToLDAPGroup
 from stack_configs.stack_functions import constructStatusList
 from stack_configs.mqtt_functions import MqttData,TopicData,processMessages
-from stack_configs.ldap_functions import createLDAPDevice,getLDAPConn,addToLDAPGroup,resetLDAPpassword
+from stack_configs.ldap_functions import createLDAPDevice,getLDAPConn,addToLDAPGroup,resetLDAPpassword,getLDAPConnWithUser
 from stack_configs.influx_functions import getLastInflux
 from stack_configs.mqtt_paho_functions import connectToMqtt
 
@@ -49,14 +49,19 @@ def resetPsw(request, device_id):
     my_objects = get_list_or_404(Device,id=device_id, account=request.user)
     mydevice= my_objects[0]
     password= id_generator()
+    logger.debug("device psw:%s",password)
     if(createLDAPDevice(mydevice, password)):
         addToLDAPGroup(mydevice.device_id,'device')
+       
+        
         output=""
         topicFormat= str(mydevice.account.id)+"."+str(mydevice.device_id)+".*.*"
         topic=str(request.user.id)+"."+str(mydevice.device_id)+".test.1"
         logger.debug("trying to send mqtt for topic %s",topic)
         payload={"test"}
+      
         mqttConnResult=connectToMqtt(mydevice.device_id,password,topic,payload)
+        
         context = {
             'content':output,
             'username': mydevice.device_id,
@@ -74,6 +79,8 @@ def resetPsw(request, device_id):
          
         }
     elif(resetLDAPpassword(mydevice.device_id,password)):
+                      
+                        
         output=""
         topicFormat= str(mydevice.account.id)+"."+str(mydevice.device_id)+".*.*"
         topic=str(mydevice.account.id)+"."+str(mydevice.device_id)+".test.1"

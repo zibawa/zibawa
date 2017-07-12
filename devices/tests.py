@@ -50,6 +50,8 @@ class DeviceTests(TestCase):
         response=self.client.get('/devices/1/resetPsw/')
         self.assertEqual(response.context['mqttConnResult'],0)
         self.assertEqual(response.status_code, 200)
+        
+        
         logger.info('tests: getting devices resetPsw 2nd time, modifes existing device on ldap')
         response=self.client.get('/devices/1/resetPsw/')
         self.assertEqual(response.context['mqttConnResult'],0)
@@ -130,7 +132,7 @@ class DeviceTests(TestCase):
         self.Test_get_last_influx()
         #self.Test_admin_pages()
     
-    def tearDown(self):
+    def tearDown1(self):
         #remove device from ldap
         logger.info('tests: tearDown device tests')
         removeFromLDAPGroup(test_device_id,'device')

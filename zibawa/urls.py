@@ -16,6 +16,19 @@ Including another URLconf
 from django.conf.urls import include, url
 from django.contrib import admin
 
+from django.conf.urls import url, include
+
+
+
+
+
+#router.register(r'cert_request', views.cert_request)
+#router.register(r'get_approved_cert',views.get_approved_cert)
+
+# Wire up our API using automatic URL routing.
+# Additionally, we include login URLs for the browsable API.
+
+
 
 urlpatterns = [
     
@@ -23,6 +36,7 @@ urlpatterns = [
     url(r'^front/', include('front.urls',namespace='front')),
     url(r'^admin/', admin.site.urls),
     url(r'^', include('front.urls')),
+    
     
     
     
