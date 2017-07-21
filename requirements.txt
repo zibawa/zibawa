@@ -5,9 +5,9 @@ coreapi==2.3.1
 coreschema==0.0.4
 cryptography==1.9
 Django==1.10.6
+django-IoT-pki==1.3
 djangorestframework==3.6.3
 elasticsearch==5.2.0
--e git+git@github.com:mattfield11/python-opcua.git@479054f84624653f60924d07d80ce6ecf8ca24d8#egg=freeopcua
 future==0.16.0
 idna==2.5
 influxdb==4.0.0
@@ -15,6 +15,7 @@ itypes==1.1.0
 Jinja2==2.9.6
 ldap3==2.2.2
 lxml==3.8.0
+Markdown==2.6.8
 MarkupSafe==1.0
 packaging==16.8
 paho-mqtt==1.2.2
