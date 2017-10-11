@@ -15,6 +15,14 @@ from stack_configs.ldap_functions import createLDAPDevice,getLDAPConn,addToLDAPG
 from stack_configs.influx_functions import getLastInflux
 from stack_configs.mqtt_paho_functions import connectToMqtt
 
+import base64
+
+
+from django.contrib.auth import authenticate
+
+
+
+
 import string
 import random
 import logging
@@ -134,6 +142,7 @@ def id_generator(size=10, chars=string.ascii_uppercase + string.digits):
 
     
 
+    
 
 @login_required(login_url='/admin/login/?next=/admin/')
 def testMessage(request):
@@ -200,7 +209,15 @@ def download_CA_cert(request):
         response['Content-Disposition'] = 'attachment; filename="zibawa_mqtt_ca_cert.pem"'
     
     except:
-        response= HttpResponseNotFound('404 - Not found')
+        response= HttpResponseNotFound('404  Not found')
     
     
     return response    
+
+
+    
+    
+   
+
+
+

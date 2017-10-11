@@ -34,7 +34,8 @@ urlpatterns = [
     url(r'^IoT_pki/', include('IoT_pki.urls',namespace='IoT_pki')),
     url(r'^', include(router.urls)),
     url(r'^api-auth/', include('rest_framework.urls', namespace='rest_framework')),
-    url(r'^docs/', include_docs_urls(title='zibawa_PKI'))
+    url(r'^', include('api_v1.urls')),
+    url(r'^docs/', include_docs_urls(title='api_v1'))
     
     
     
