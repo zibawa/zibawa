@@ -100,17 +100,21 @@ class TimeData(object):
     
  
 
-def getChannel(topicData):
-#assumes topic format sender/receiver/channel/format    
+
+
+def getChannel(channel_id,device_id):
+#verifies than channel and device combination exist on database   
     try:
-        result= Channel.objects.get(channel_id=topicData.channel,device__device_id=topicData.device)
+        result= Channel.objects.get(channel_id=channel_id,device__device_id=device_id)
     except:
         result='false'
-        LOGGER.warning('channel not found on database for that device %s,%s', topicData.device,topicData.channel)
+        LOGGER.warning('channel not found on database for that device: %s,%s', channel_id,device_id)
         pass
         
         
     return result
+
+
 
 
 
@@ -181,14 +185,12 @@ def processMessages(mqttData):
                     return mqttChecksList
     
               
-    tags={}
-    #this defines the elasticsearch index or influxDatabase we will send to.       
-    username=User.objects.get(id=t.account)
-    print ("USERNAME IS %s",username)
-    index= "dab"+str(username)
-    config=settings.DATASTORE
-    if (config=='ELASTICSEARCH'):
-        initializeElasticIndex(index)
+  
+          
+    
+    index = getIndexName(t.account)
+    
+    
     #try to parse timestamp from message, if fails current time
  
     try:
@@ -201,6 +203,12 @@ def processMessages(mqttData):
     #result.timestamp= time_data.errorMessage 
     data['timestamp']= str(time_data.t_object)   
     #parse hooks from json message
+    
+    ch=getChannel(t.channel,t.device)
+    
+    
+    #construct tags object with channel data
+    tags={}
     try:
         listOfHooks=data['hooks']
         LOGGER.debug('Hooks found %s', mqttData.topic)
@@ -218,7 +226,7 @@ def processMessages(mqttData):
     tags['channel_id']=t.channel   
     #retrieve channel object from database
     
-    ch=getChannel(t)
+    
     
     if not (ch=="false"):
         tags.update(enrichChannel(ch))
@@ -245,6 +253,45 @@ def processMessages(mqttData):
     mqttChecksList.append(output) 
     return mqttChecksList
     
+
+def processHttp(data,device_id):
+    #processHttp is called by api. Data is array validated by Django Rest Framework
+    
+    
+    tags={}
+    time_data=TimeData(data['timestamp'])
+    ch=getChannel(data['channel_id'],device_id)
+    data.pop('channel_id')
+    if not (ch=="false"):
+        account=ch.device.account.id
+        index= getIndexName(account)
+        tags['channel_id']=ch.channel_id
+        tags['device_id']=ch.device.device_id
+        tags.update(enrichChannel(ch))
+        tags.update(addChannel_Tags(ch))
+        checkAlarms(data,"value",ch)
+    
+        #add time related tags, hour,week etc
+        tags.update(addTimeTags(time_data.t_object,ch))
+        #add custom time elapsed time data for rfid 
+        if (ch.elapsed_since_same_ch=='True'):
+            data.update(getTimeElapsedInflux(index,device_id,data.channel_id,data))
+        if (ch.elapsed_since_diff_ch=='True'):
+            data.update(getTimeElapsedTagOnDifferentInflux(index,device_id,data.channel_id,data))
+       
+        output=sendToDB(index,data,tags)
+    
+    return output
+
+def getIndexName(account):
+    
+    
+    username=User.objects.get(id=account)
+    index= "dab"+str(username)
+    config=settings.DATASTORE
+    if (config=='ELASTICSEARCH'):
+        initializeElasticIndex(index)
+    return index    
     
 def processHooks(listOfHooks):
     #given a list of Hooks(from message, or via channel/device database

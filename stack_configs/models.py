@@ -70,17 +70,17 @@ def sendToRabbitMQ(topic,message):
 
 def sendToDB(index,data,tags):
     
-    config=settings.DATASTORE
+    
     json_data = json.dumps(data,default=date_handler)
     json_tags = json.dumps(tags,default=date_handler)
     logger.info('Sending to db %s data %s', index,json_data)
     logger.info('Sending to db tags %s', json_tags)
-    if (config=='ELASTICSEARCH'):
+    if (settings.DATASTORE=='ELASTICSEARCH'):
         #for elasticsearch merge data and tags arrays
         data.update(tags)
         result=sendToElastic(index,json_data)
         
-    elif (config=='INFLUXDB'):
+    elif (settings.DATASTORE=='INFLUXDB'):
         
         result=sendToInflux(index,data,tags)
     return result
@@ -109,12 +109,13 @@ def getElasticConnection():
     
 def sendToElastic(indexName,jsonData):    
 #careful with document types! currently static as json mapping must also use json!        
+    try:
         es = getElasticConnection()
         res = es.index(index=indexName, doc_type="json", body=jsonData)
         return res
         
-        #except:
-        #    return False
+    except:
+        return False
 def searchElastic(indexName,query):
         
         
@@ -194,10 +195,12 @@ def initializeElasticIndex(indexName):
     
    
    
+    try:
+        es= getElasticConnection() 
     
-    es= getElasticConnection() 
-    
-    if not es.indices.exists(index=indexName):
-        es.indices.create(index=indexName, ignore=400, body=mappingJson)
+        if not es.indices.exists(index=indexName):
+            es.indices.create(index=indexName, ignore=400, body=mappingJson)
+    except:
+        return False
         
-    return
+    return True

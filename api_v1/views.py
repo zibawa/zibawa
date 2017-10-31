@@ -15,7 +15,7 @@ from django.http import Http404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-
+from stack_configs.mqtt_functions import processHttp
 
 
 
@@ -23,10 +23,11 @@ import logging
 logger = logging.getLogger(__name__)
 # Create your views here.
 
-class SnippetList(APIView):
+class Data_ingest(APIView):
     """
     List all snippets, or create a new snippet.
     """
+    permission_classes = (IsAuthenticated,)
     def get(self, request, format=None):
         snippets = Data_ingest_line.objects.all()
         serializer = Data_ingest_lineSerializer(snippets, many=True)
@@ -43,8 +44,10 @@ class SnippetList(APIView):
         if serializer.is_valid():
             logger.debug("valid serializer")
             logger.debug("user is %s",request.user)
+            result= processHttp(serializer.data,request.user)
+            logger.info("processHttp result: %s,", result)
             #serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(result, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
