@@ -284,13 +284,18 @@ def processHttp(data,device_id):
     return output
 
 def getIndexName(account):
+    #in future should refactor influxDB to be same as elasticsearch.
+    #influx is tolerant to higher case, and would need to refactor grafana datasource setup code
     
     
     username=User.objects.get(id=account)
-    index= "dab"+str(username)
+     
     config=settings.DATASTORE
     if (config=='ELASTICSEARCH'):
+        index="dab"+str(username).lower()
         initializeElasticIndex(index)
+    else:
+        index= "dab"+str(username)    
     return index    
     
 def processHooks(listOfHooks):

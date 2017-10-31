@@ -16,4 +16,8 @@ class Data_ingest_lineSerializer(serializers.Serializer):
         """
         return Data_ingest_line.objects.create(**validated_data)
 
-   
+class Data_ingest_bulkSerializer(serializers.Serializer):
+    datapoints = Data_ingest_lineSerializer(many=True)
+    #edits = EditItemSerializer(many=True)  # A nested list of 'edit' items.
+    #content = serializers.CharField(max_length=200)
+    #created = serializers.DateTimeField()

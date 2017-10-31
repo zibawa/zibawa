@@ -1,0 +1,71 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<style>
+#status tr.OK td { 
+  background-color: white;
+  color: green; 
+  }
+  
+#status tr.Failed td { 
+  background-color: white;
+  color: red; 
+  }
+  
+  
+</style>
+
+<form action="#" method="post">
+    {% csrf_token %}
+    {{ form }}
+    <input type="submit" value="Submit" />
+</form>
+<h4>Instructions</h4>
+<p>Numeric values should NOT be enclosed in "" or they will be treated as strings.</p>
+<p>See the docs for full information on message formats, tags, and hooks</p>
+
+<table>
+<tr><td>Topic Format</td><td>eg. account.device.test.1</td><td></td><td></td></tr>
+<tr><td>Data Format</td><td>Recommended JSON </td><td>{"timestamp": "2017-02-21T18:51:29+00:00", "value": 2189.22,"status":"testing"}</td></tr>
+<tr><td>Hooks</td><td>Hooks must be on database</td><td>{"hooks":["hook1","hook2"]}<td></td></tr>
+
+
+</table>
+<h4>Mqtt Checks</h4>
+{% if mqttChecksList %}
+
+<table id="status">
+<tr><th>Element</th><th>Status</th><th>Message</th></tr>
+{% for check in mqttChecksList %}
+{% if check.status %}
+<tr class="OK">
+{% else %}
+<tr class="Failed">
+{% endif %}
+<td>{{check.name}}</td><td>{{check.status}}</td><td>{{check.message}}</td></tr>
+{% endfor %}
+</table>
+{% else %}
+    <p>No status elements are available.</p>
+{% endif %}
+
+<h4>Stack Configs</h4>
+{% if status_list %}
+
+<table id="status">
+<tr><th>Element</th><th>Status</th><th>Message</th></tr>
+{% for check in status_list %}
+{% if check.status %}
+<tr class="OK">
+{% else %}
+<tr class="Failed">
+{% endif %}
+
+<td>{{check.name}}</td><td>{{check.status}}</td><td>{{check.message}}</td></tr>
+{% endfor %}
+</table>
+{% else %}
+    <p>No status elements are available.</p>
+{% endif %}
+
+
+{% endblock %}

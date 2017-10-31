@@ -109,21 +109,21 @@ def getElasticConnection():
     
 def sendToElastic(indexName,jsonData):    
 #careful with document types! currently static as json mapping must also use json!        
-    try:
-        es = getElasticConnection()
-        res = es.index(index=indexName, doc_type="json", body=jsonData)
-        return res
+   
+    es = getElasticConnection()
+    res = es.index(index=indexName, doc_type="json", body=jsonData)
+    return res
         
-    except:
-        return False
+   
 def searchElastic(indexName,query):
         
         
         es = getElasticConnection()
                   
-        try:
+        try:       
             res = es.search(index=indexName, body=query)
             return res
+        
         except:
             return False
 
