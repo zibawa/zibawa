@@ -7,7 +7,7 @@ from datetime import datetime
 from django.conf import settings
 import pika
 import ssl
-from elasticsearch import Elasticsearch
+from elasticsearch import Elasticsearch,helpers
 from genericpath import exists
 from django.contrib.admin.utils import help_text_for_field
 from influxdb import InfluxDBClient,SeriesHelper
@@ -17,6 +17,7 @@ import json
 
 
 import logging
+from django.contrib.admin.templatetags.admin_list import results
 logger = logging.getLogger(__name__)
 
 
@@ -111,8 +112,39 @@ def sendToElastic(indexName,jsonData):
 #careful with document types! currently static as json mapping must also use json!        
    
     es = getElasticConnection()
-    res = es.index(index=indexName, doc_type="json", body=jsonData)
-    return res
+    result = es.index(index=indexName, doc_type="zibawa", body=jsonData)
+    return result
+
+def sendToElasticBulk(indexName,datapoints):
+    
+    
+   
+
+
+    es = getElasticConnection()
+  
+    actions =[]
+    
+    for datapoint in datapoints:
+        action = {
+        "_index": indexName,
+        "_type": "zibawaBulk",
+        "_source": datapoint
+        }
+        actions.append(action)
+
+    result=helpers.bulk(es, actions)
+    
+    return result
+    
+
+
+    
+    
+
+
+
+
         
    
 def searchElastic(indexName,query):
@@ -137,7 +169,7 @@ def searchElastic(indexName,query):
 def initializeElasticIndex(indexName):
     
     mappingJson={"mappings": {
-        "json": {
+        "zibawa": {
             "properties": {
                 "timestamp": {
                     "type": "date"
