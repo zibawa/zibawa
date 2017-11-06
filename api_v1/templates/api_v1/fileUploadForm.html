@@ -20,8 +20,27 @@
     <input type="submit" value="Submit" />
 </form>
 <h4>Instructions</h4>
-<p>Numeric values should NOT be enclosed in "" or they will be treated as strings.</p>
-<p>See the docs for full information on message formats, tags, and hooks</p>
+<p>The first row of data will be treated as columns and must coincide exactly with the required field names.
+Always use lower case, and ensure there are no trailing spaces. </p>
+
+
+
+
+
+{% if success %}
+<table id="status">
+<tr class="OK"><td>{{lines}}</td><td>Lines loaded onto database</td></tr>
+</table>
+
+
+{% elif failure %}
+
+<table id="status">
+<tr><th>Element</th><th>Status</th></tr>
+<tr><td>Status code</td><td>{{status_code}}</tr>
+<tr class="Failed"><td>Error messages</td><td>{{error_message}}</tr>
+</table>
+{% endif %}
 
 
 

@@ -4,9 +4,19 @@ from django.utils import timezone
 
 
 class Data_ingest_lineSerializer(serializers.Serializer):
-    channel_id = serializers.CharField(max_length=50)
-    value  = serializers.FloatField()
+    channel_id = serializers.CharField(max_length=50,default="none")
+    #value  = serializers.FloatField()
     timestamp = serializers.DateTimeField(default=timezone.now)
+    concentration = serializers.FloatField()
+    morphology = serializers.FloatField()
+    motility = serializers.FloatField()
+    weight = serializers.FloatField()
+    height = serializers.FloatField()
+    bmi = serializers.FloatField()
+    std = serializers.BooleanField()
+    smoker = serializers.BooleanField()
+    exercise = serializers.BooleanField()
+    conceive = serializers.BooleanField()
    
     
 
@@ -18,6 +28,6 @@ class Data_ingest_lineSerializer(serializers.Serializer):
 
 class Data_ingest_bulkSerializer(serializers.Serializer):
     datapoints = Data_ingest_lineSerializer(many=True)
-    #edits = EditItemSerializer(many=True)  # A nested list of 'edit' items.
+    upload_ref_ID = serializers.CharField(max_length=50)
     #content = serializers.CharField(max_length=200)
     #created = serializers.DateTimeField()

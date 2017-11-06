@@ -6,7 +6,7 @@ from past.utils import old_div
 from builtins import object
 from devices.models import Device,Channel,Channel_tag
 from hooks.models import person,place,product,hook
-from .models import sendToDB,sendToElastic,searchElastic,initializeElasticIndex
+from stack_configs.elastic_functions import sendToDB,sendToElastic,searchElastic,initializeElasticIndex
 from django.utils.dateparse import parse_datetime
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.html import strip_tags
