@@ -14,7 +14,7 @@ future==0.16.0
 idna==2.5
 influxdb==4.0.0
 itypes==1.1.0
-Jinja2==2.9.6
+Jinja2==2.11.3
 ldap3==2.2.2
 lxml==3.8.0
 Markdown==2.6.8
