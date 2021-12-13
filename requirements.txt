@@ -16,7 +16,7 @@ influxdb==4.0.0
 itypes==1.1.0
 Jinja2==2.9.6
 ldap3==2.2.2
-lxml==3.8.0
+lxml==4.6.5
 Markdown==2.6.8
 MarkupSafe==1.0
 packaging==16.8
